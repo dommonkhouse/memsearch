@@ -10,6 +10,7 @@ from .inventory import collect_inventory
 from .manifest import manifest_path, read_manifest, write_manifest
 from .models import BackfillManifestEntry, Conversation, SourceFile, machine_slug
 from .parsers.claude_code import parse_claude_code
+from .parsers.claude_desktop import parse_claude_desktop
 from .parsers.codex import parse_codex
 from .render import output_path_for_conversation, render_conversation
 
@@ -135,6 +136,8 @@ def _parse_source(source: SourceFile) -> Conversation:
         return parse_claude_code(source.path, machine=source.machine)
     if source.product == "codex":
         return parse_codex(source.path, machine=source.machine)
+    if source.product in {"claude_desktop_local_agent_jsonl", "claude_desktop_local_agent_json", "claude_desktop_code_session"}:
+        return parse_claude_desktop(source)
     raise ValueError(f"unsupported product: {source.product}")
 
 

@@ -36,9 +36,10 @@ def output_path_for_conversation(base_dir: Path, conversation: Conversation) -> 
 
 def _heading(conversation: Conversation) -> str:
     product = conversation.product.replace("_", " ").title()
-    suffix = conversation.started_at or conversation.title or conversation.conversation_key
+    title = redact_secrets(conversation.title)
+    suffix = conversation.started_at or title or conversation.conversation_key
     if conversation.started_at and conversation.title:
-        suffix = f"{conversation.started_at}: {conversation.title}"
+        suffix = f"{conversation.started_at}: {title}"
     return f"## {product} session {suffix}"
 
 
