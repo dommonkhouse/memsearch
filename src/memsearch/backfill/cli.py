@@ -75,7 +75,7 @@ def _convert(
     output.mkdir(parents=True, exist_ok=True)
     sources = collect_inventory(home=home, machine=machine, repo_root=repo_root)
     if limit is not None:
-        sources = sources[: max(0, limit)]
+        sources = _limit_per_product(sources, max(0, limit))
 
     manifest_file = manifest_path(output, machine_slug(machine))
     existing_entries = read_manifest(manifest_file) if manifest_file.is_file() else []
@@ -142,6 +142,17 @@ def _parse_source(source: SourceFile) -> Conversation:
     if source.product.startswith("manus_"):
         raise ValueError(classify_manus_source(source.path))
     raise ValueError(f"unsupported product: {source.product}")
+
+
+def _limit_per_product(sources: list[SourceFile], limit: int) -> list[SourceFile]:
+    counts: Counter[str] = Counter()
+    limited: list[SourceFile] = []
+    for source in sources:
+        if counts[source.product] >= limit:
+            continue
+        counts[source.product] += 1
+        limited.append(source)
+    return limited
 
 
 if __name__ == "__main__":

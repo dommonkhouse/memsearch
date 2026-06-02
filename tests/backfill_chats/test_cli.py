@@ -95,3 +95,36 @@ def test_convert_cli_is_byte_identical_on_second_run(tmp_path: Path) -> None:
 
     assert before
     assert after == before
+
+
+def test_pilot_limit_applies_per_product(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    output = tmp_path / "pilot"
+    for idx in range(2):
+        write_jsonl(
+            home / f".claude/projects/foo/session-{idx}.jsonl",
+            [
+                {
+                    "timestamp": "2026-06-01T10:00:01Z",
+                    "type": "user",
+                    "sessionId": f"claude-{idx}",
+                    "message": {"content": f"Claude {idx}"},
+                }
+            ],
+        )
+        write_jsonl(
+            home / f".codex/sessions/2026/06/01/rollout-{idx}.jsonl",
+            [
+                {"timestamp": "2026-06-01T10:00:00Z", "type": "session_meta", "payload": {"id": f"codex-{idx}"}},
+                {
+                    "timestamp": "2026-06-01T10:00:01Z",
+                    "type": "event_msg",
+                    "payload": {"type": "user_message", "message": f"Codex {idx}"},
+                },
+            ],
+        )
+
+    result = run_backfill("pilot", "--home", str(home), "--machine", "Test Mac", "--limit", "1", "--output", str(output))
+    payload = json.loads(result.stdout)
+
+    assert payload["converted"] == 2
