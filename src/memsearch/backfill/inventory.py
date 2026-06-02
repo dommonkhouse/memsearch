@@ -26,6 +26,18 @@ HOME_RULES = [
         status="possible_duplicate_claude_code",
     ),
     InventoryRule("chatgpt_cache", "Library/Application Support/com.openai.chat/**/*", is_fallback=True),
+    InventoryRule(
+        "manus_indexeddb",
+        "Library/Application Support/Manus/IndexedDB/**/*",
+        source_kind="indexeddb",
+        is_fallback=True,
+    ),
+    InventoryRule(
+        "manus_cache",
+        "Library/Application Support/Manus/Cache/**/*",
+        source_kind="cache",
+        is_fallback=True,
+    ),
     InventoryRule("manus_cache", "Library/Application Support/Manus/**/*", is_fallback=True),
     InventoryRule(
         "chatgpt_cache",
@@ -38,8 +50,9 @@ HOME_RULES = [
         is_fallback=True,
     ),
     InventoryRule(
-        "manus_cache",
+        "manus_indexeddb",
         "Library/Application Support/Google/Chrome/Default/IndexedDB/https_manus.im_0.indexeddb.leveldb/**/*",
+        source_kind="indexeddb",
         is_fallback=True,
     ),
 ]

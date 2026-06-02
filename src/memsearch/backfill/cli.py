@@ -12,6 +12,7 @@ from .models import BackfillManifestEntry, Conversation, SourceFile, machine_slu
 from .parsers.claude_code import parse_claude_code
 from .parsers.claude_desktop import parse_claude_desktop
 from .parsers.codex import parse_codex
+from .parsers.manus import classify_manus_source
 from .render import output_path_for_conversation, render_conversation
 
 
@@ -138,6 +139,8 @@ def _parse_source(source: SourceFile) -> Conversation:
         return parse_codex(source.path, machine=source.machine)
     if source.product in {"claude_desktop_local_agent_jsonl", "claude_desktop_local_agent_json", "claude_desktop_code_session"}:
         return parse_claude_desktop(source)
+    if source.product.startswith("manus_"):
+        raise ValueError(classify_manus_source(source.path))
     raise ValueError(f"unsupported product: {source.product}")
 
 

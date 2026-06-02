@@ -32,4 +32,11 @@ Current skipped sources:
 - Claude Desktop audit logs.
 - Claude Desktop subagent transcripts by default.
 - Claude Desktop `claude-code-sessions` metadata, treated as possible Claude Code duplicates.
-- ChatGPT, Claude, and Manus cache files until a proven conversation shape or official export is available.
+- ChatGPT and Claude cache files until official exports are available.
+- Manus local app and browser files are probe-only. Current local files are Chromium cache and IndexedDB/LevelDB artefacts, not a proven transcript format.
+
+## Manus route
+
+Manus has a public API for creating and managing agent tasks, including multi-turn task messages, but this does not prove access to all existing product chat history. Manus also documents compliance/e-discovery export APIs, but those are activation-only and not general product access.
+
+Until either an official user export, approved compliance export, or clean local transcript shape is available, Manus entries remain skipped with reasons such as `indexeddb_probe_only`, `cache_probe_only`, or `unknown_format`.
