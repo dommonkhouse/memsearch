@@ -22,3 +22,21 @@ def test_redact_cookie_and_application_password_values() -> None:
     assert "wp-secret" not in redacted
     assert redacted.count("[REDACTED]") >= 2
 
+
+def test_redact_computer_session_file_links() -> None:
+    text = "Here you go: [key](computer:///sessions/name/mnt/outputs/service-account-key.json)"
+
+    redacted = redact_secrets(text)
+
+    assert "computer:///sessions" not in redacted
+    assert "service-account-key.json" not in redacted
+    assert "[REDACTED]" in redacted
+
+
+def test_redact_service_account_key_filenames() -> None:
+    text = "ga4-service-account-key.json i need it"
+
+    redacted = redact_secrets(text)
+
+    assert "service-account-key.json" not in redacted
+    assert "[REDACTED]" in redacted

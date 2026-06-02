@@ -5,6 +5,8 @@ import re
 REDACTION = "[REDACTED]"
 
 SECRET_PATTERNS = [
+    re.compile(r"computer:///sessions/[^\s)]+"),
+    re.compile(r"\b[\w.-]*service-account-key\.json\b", re.IGNORECASE),
     re.compile(r"(?i)(Authorization:\s*Bearer\s+)[^\s]+"),
     re.compile(r"(?i)(Bearer\s+)sk-[A-Za-z0-9._-]+"),
     re.compile(r"(?i)(Cookie:\s*)[^\n\r]+"),
