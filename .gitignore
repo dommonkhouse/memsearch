@@ -23,6 +23,7 @@ htmlcov/
 
 # Runtime
 .memsearch/
+.local/
 CONTEXT.md
 CLAUDE.local.md
 AGENTS.local.md
