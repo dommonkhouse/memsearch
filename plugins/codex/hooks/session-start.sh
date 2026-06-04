@@ -114,8 +114,12 @@ if [ "$KEY_MISSING" = true ]; then
   exit 0
 fi
 
-# Start memsearch watch (Server mode) or do one-time index (Lite mode).
-start_watch
+# In server/Milvus mode, do not start a broad watcher: interrupted whole-tree
+# indexing can leave the shared collection partially rebuilt. Stop hooks index
+# the current memory file directly without pruning.
+if [[ "$MILVUS_URI" != http* ]] && [[ "$MILVUS_URI" != tcp* ]]; then
+  start_watch
+fi
 
 # Lite mode: one-time index since watch is not running.
 # Runs in background subshell to avoid blocking the hook.

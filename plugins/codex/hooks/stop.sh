@@ -48,6 +48,57 @@ _load_worker_field() {
   _json_val "$work_input" "$key" ""
 }
 
+_index_memory_file_nonpruning() {
+  local target_file="$1"
+  if ! memsearch_available || [ -z "$target_file" ] || [ ! -f "$target_file" ]; then
+    return 0
+  fi
+
+  local memsearch_bin="${MEMSEARCH_CMD[0]}"
+  if [ "$memsearch_bin" = "memsearch" ]; then
+    memsearch_bin="$(command -v memsearch 2>/dev/null || true)"
+  fi
+
+  local python_bin=""
+  if [ -n "$memsearch_bin" ]; then
+    python_bin="$(dirname "$memsearch_bin")/python3"
+  fi
+  if [ -z "$python_bin" ] || [ ! -x "$python_bin" ]; then
+    python_bin="python3"
+  fi
+
+  MEMSEARCH_TARGET_FILE="$target_file" \
+  MEMSEARCH_COLLECTION_NAME="${COLLECTION_NAME:-}" \
+  MEMSEARCH_COLLECTION_DESC="${COLLECTION_DESC:-}" \
+  "$python_bin" <<'PY' 2>/dev/null || true
+import asyncio
+import os
+from pathlib import Path
+
+from memsearch.cli import _build_cli_overrides, _cfg_to_memsearch_kwargs, _safe_resolve_config
+from memsearch.core import MemSearch
+from memsearch.scanner import ScannedFile
+
+
+async def main() -> None:
+    target = os.environ["MEMSEARCH_TARGET_FILE"]
+    collection = os.environ.get("MEMSEARCH_COLLECTION_NAME") or None
+    description = os.environ.get("MEMSEARCH_COLLECTION_DESC") or ""
+    cfg = _safe_resolve_config(_build_cli_overrides(collection=collection))
+    ms = MemSearch([], **_cfg_to_memsearch_kwargs(cfg), description=description)
+    try:
+        path = Path(target).expanduser().resolve()
+        stat = path.stat()
+        scanned = ScannedFile(path=path, mtime=stat.st_mtime, size=stat.st_size)
+        await ms._index_file(scanned, force=True)
+    finally:
+        ms.close()
+
+
+asyncio.run(main())
+PY
+}
+
 run_worker() {
   local work_file="${1:-}"
   if [ -z "$work_file" ] || [ ! -f "$work_file" ]; then
@@ -183,8 +234,7 @@ ${CONTENT}"
   local _uri
   _uri="${MILVUS_URI:-$(_memsearch config get milvus.uri 2>/dev/null || echo "")}"
   if [[ "$_uri" == http* ]] || [[ "$_uri" == tcp* ]]; then
-    kill_orphaned_index
-    run_memsearch index "$MEMORY_DIR" >/dev/null
+    _index_memory_file_nonpruning "$MEMORY_FILE"
   fi
 
   run_maintenance
