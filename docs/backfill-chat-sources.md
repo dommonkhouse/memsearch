@@ -148,7 +148,11 @@ Full Manus API export on 2026-06-05:
 - Review collection row count: 906 chunks.
 - Review coverage: 622 unique Manus task IDs present in indexed content.
 - Search checks passed for LinkedIn carousel extraction, Monkhouse image alt text, Manus task ID lookup, and podcast transcript retrieval.
-- Canonical/default MemSearch: not touched yet.
+- Canonical/default MemSearch: ingested on 2026-06-06 from `/Users/dominicmonkhouse/Projects/.memsearch/memory/manus-cloud/manus-api/20260605-092248/`.
+- Canonical/default collection: `memsearch_chunks`.
+- Canonical/default row count after compaction: 1,430 chunks.
+- Canonical/default Manus coverage: 901 Manus card chunks, 622 unique Manus task IDs.
+- Full cleaned transcript pointers were rewritten to the persistent `.memsearch/memory/manus-cloud/manus-api-full/20260605-092248/` source path. Temporary worktree-source duplicate rows were removed after re-indexing from the persistent `.memsearch/memory` source path.
 
 Temporary review collections created during tuning and safe to remove after checkpoint:
 
