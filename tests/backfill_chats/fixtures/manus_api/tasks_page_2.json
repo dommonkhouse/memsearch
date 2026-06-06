@@ -1,0 +1,15 @@
+{
+  "data": [
+    {
+      "created_at": "1780390593",
+      "id": "task-beta",
+      "status": "waiting",
+      "task_type": "standard",
+      "task_url": "https://manus.im/app/task-beta",
+      "title": "Beta task",
+      "updated_at": "1780390633"
+    }
+  ],
+  "has_more": false,
+  "ok": true
+}
