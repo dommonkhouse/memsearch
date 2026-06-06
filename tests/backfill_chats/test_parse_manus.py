@@ -3,7 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from memsearch.backfill.models import BackfillManifestEntry, SourceFile
-from memsearch.backfill.parsers.manus import classify_manus_source, dedupe_manus_probe_entries, probe_manus_source
+from memsearch.backfill.parsers.manus import (
+    classify_manus_source,
+    dedupe_manus_probe_entries,
+    parse_manus_task,
+    probe_manus_source,
+)
 
 
 def test_probe_manus_classifies_indexeddb_cache_and_unknown(tmp_path: Path) -> None:
@@ -59,3 +64,33 @@ def test_dedupe_manus_probe_entries_marks_duplicate_conversation_keys() -> None:
     assert deduped[0].status == "converted"
     assert deduped[1].status == "duplicate_conversation"
     assert deduped[1].last_error == "duplicate_conversation"
+
+
+def test_parse_manus_task_turns_fixture_into_conversation(tmp_path: Path) -> None:
+    source_path = tmp_path / "messages.json"
+    source_path.write_text("[]", encoding="utf-8")
+
+    conversation = parse_manus_task(
+        task={
+            "id": "task-alpha",
+            "title": "Alpha task",
+            "status": "stopped",
+            "created_at": "1780390415",
+            "updated_at": "1780390534",
+            "task_url": "https://manus.im/app/task-alpha",
+        },
+        messages=[
+            {"type": "message", "timestamp": "1", "user_message": {"content": "Hello"}},
+            {"type": "message", "timestamp": "2", "assistant_message": {"content": "World"}},
+            {"type": "status_update", "timestamp": "3", "status_update": {"status": "stopped"}},
+        ],
+        source_path=source_path,
+        machine="Test Mac",
+        artifacts=[{"filename": "notes.md", "status": "downloaded", "bytes": 10, "sha256": "abc", "local_path": "attachments/notes.md"}],
+    )
+
+    assert conversation.product == "manus_api"
+    assert conversation.platform_id == "task-alpha"
+    assert [turn.role for turn in conversation.turns] == ["user", "assistant", "status"]
+    assert conversation.metadata["source"] == "manus_api"
+    assert conversation.artifacts[0]["filename"] == "notes.md"

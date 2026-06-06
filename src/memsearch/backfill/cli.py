@@ -8,11 +8,22 @@ import click
 
 from .inventory import collect_inventory
 from .manifest import manifest_path, read_manifest, write_manifest
+from .manus_api import (
+    ManusApiClient,
+    ManusPromotionError,
+    estimate_manus_export,
+    export_manus_run,
+    generate_manus_memsearch_cards,
+    mark_manus_run_not_indexed,
+    promote_manus_run,
+    verify_manus_run,
+)
 from .models import BackfillManifestEntry, Conversation, SourceFile, machine_slug
 from .parsers.claude_code import parse_claude_code
 from .parsers.claude_desktop import parse_claude_desktop
 from .parsers.codex import parse_codex
 from .parsers.manus import classify_manus_source
+from .redact import scan_path_for_secrets, secret_hits_to_json
 from .render import output_path_for_conversation, render_conversation
 
 
@@ -62,6 +73,87 @@ def convert(home: Path, machine: str, repo_root: Path | None, output: Path) -> N
 def verify_manifest(manifest_file: Path) -> None:
     entries = read_manifest(manifest_file)
     click.echo(json.dumps({"entries": len(entries)}, indent=2, sort_keys=True))
+
+
+@main.command("manus-estimate")
+def manus_estimate() -> None:
+    client = ManusApiClient()
+    click.echo(json.dumps(estimate_manus_export(client), indent=2, sort_keys=True))
+
+
+@main.command("manus-pilot")
+@click.option("--limit", type=int, default=10)
+@click.option("--machine", required=True)
+@click.option("--output", type=click.Path(path_type=Path), default=Path(".local/manus-api-export"))
+def manus_pilot(limit: int, machine: str, output: Path) -> None:
+    client = ManusApiClient()
+    summary = export_manus_run(client, output, machine=machine, limit=limit)
+    click.echo(json.dumps(summary, indent=2, sort_keys=True))
+
+
+@main.command("manus-export")
+@click.option("--all", "export_all", is_flag=True)
+@click.option("--limit", type=int, default=None)
+@click.option("--machine", required=True)
+@click.option("--output", type=click.Path(path_type=Path), default=Path(".local/manus-api-export"))
+@click.option("--run-id", default=None)
+@click.option("--resume", is_flag=True)
+def manus_export(export_all: bool, limit: int | None, machine: str, output: Path, run_id: str | None, resume: bool) -> None:
+    if not export_all and limit is None:
+        raise click.ClickException("Use --all or --limit")
+    client = ManusApiClient()
+    summary = export_manus_run(client, output, machine=machine, limit=None if export_all else limit, run_id=run_id, resume=resume)
+    click.echo(json.dumps(summary, indent=2, sort_keys=True))
+
+
+@main.command("scan-secrets")
+@click.argument("path", type=click.Path(path_type=Path))
+def scan_secrets(path: Path) -> None:
+    hits = scan_path_for_secrets(path)
+    click.echo(secret_hits_to_json(hits))
+    if hits:
+        raise click.ClickException(f"secret scan found {len(hits)} hit(s)")
+
+
+@main.command("verify-manus-run")
+@click.argument("run_dir", type=click.Path(path_type=Path))
+def verify_manus_run_command(run_dir: Path) -> None:
+    errors = verify_manus_run(run_dir)
+    click.echo(json.dumps({"errors": errors, "ok": not errors}, indent=2, sort_keys=True))
+    if errors:
+        raise click.ClickException("Manus run verification failed")
+
+
+@main.command("manus-promote")
+@click.option("--run", "run_dir", type=click.Path(path_type=Path), required=True)
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+@click.option("--force", is_flag=True)
+def manus_promote(run_dir: Path, output: Path, force: bool) -> None:
+    try:
+        summary = promote_manus_run(run_dir, output, force=force)
+    except ManusPromotionError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(summary, indent=2, sort_keys=True))
+
+
+@main.command("manus-cards")
+@click.option("--promoted", "promoted_dir", type=click.Path(path_type=Path), required=True)
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+@click.option("--force", is_flag=True)
+def manus_cards(promoted_dir: Path, output: Path, force: bool) -> None:
+    try:
+        summary = generate_manus_memsearch_cards(promoted_dir, output, force=force)
+    except ManusPromotionError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(summary, indent=2, sort_keys=True))
+
+
+@main.command("manus-mark-not-indexed")
+@click.argument("run_dir", type=click.Path(path_type=Path))
+@click.option("--reason", required=True)
+def manus_mark_not_indexed(run_dir: Path, reason: str) -> None:
+    note_path = mark_manus_run_not_indexed(run_dir, reason=reason)
+    click.echo(json.dumps({"note_path": str(note_path)}, indent=2, sort_keys=True))
 
 
 def _convert(

@@ -73,3 +73,42 @@ def test_render_uses_export_hash_when_source_is_export(tmp_path: Path) -> None:
 
     assert "export_hash:sha256:" in markdown
     assert "transcript:" not in markdown
+
+
+def test_render_manus_conversation_uses_task_anchor_and_artifacts(tmp_path: Path) -> None:
+    source_path = tmp_path / "messages.json"
+    source_path.write_text("[]", encoding="utf-8")
+    source = SourceFile.from_path(source_path, product="manus_api", machine="Test Mac", source_kind="api")
+    conversation = Conversation(
+        source=source,
+        product="manus_api",
+        machine="Test Mac",
+        platform_id="task-alpha",
+        title="Alpha task",
+        started_at="2026-06-04T10:00:00+00:00",
+        turns=[Turn(role="user", text="Hello")],
+        metadata={
+            "task_id": "task-alpha",
+            "task_url": "https://manus.im/app/task-alpha",
+            "status": "stopped",
+            "message_count": 1,
+            "artifact_count": 1,
+        },
+        artifacts=[
+            {
+                "filename": "notes.md",
+                "status": "downloaded",
+                "bytes": 12,
+                "sha256": "abc123",
+                "local_path": str(tmp_path / "attachments" / "notes.md"),
+            }
+        ],
+    )
+
+    markdown = render_conversation(conversation)
+
+    assert "<!-- backfill-agent:manus_api task:task-alpha source:manus_api exported_by_machine:test-mac -->" in markdown
+    assert "- Manus task ID: task-alpha" in markdown
+    assert "- Manus task URL: https://manus.im/app/task-alpha" in markdown
+    assert "## Artefacts" in markdown
+    assert "notes.md (downloaded, 12 bytes, sha256:abc123)" in markdown

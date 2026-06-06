@@ -1,0 +1,44 @@
+{
+  "has_more": false,
+  "messages": [
+    {
+      "timestamp": "1780390415452",
+      "type": "message",
+      "user_message": {
+        "attachments": [
+          {
+            "content_type": "text/markdown",
+            "filename": "notes.md",
+            "url": "https://download.manus.im/signed-alpha"
+          },
+          {
+            "content_type": "text/markdown",
+            "filename": "notes.md",
+            "url": "https://download.manus.im/signed-beta"
+          },
+          {
+            "content_type": "text/plain",
+            "filename": "NOTES.md",
+            "url": "https://download.manus.im/signed-gamma"
+          }
+        ],
+        "content": "Please review this plan."
+      }
+    },
+    {
+      "assistant_message": {
+        "content": "CLEAN PASS"
+      },
+      "timestamp": "1780390505063",
+      "type": "message"
+    },
+    {
+      "status_update": {
+        "status": "stopped"
+      },
+      "timestamp": "1780390505336",
+      "type": "status_update"
+    }
+  ],
+  "ok": true
+}

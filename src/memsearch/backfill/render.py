@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from pathlib import Path
 
 from .models import Conversation, Turn, machine_slug
@@ -19,12 +20,17 @@ def render_conversation(conversation: Conversation) -> str:
     ]
     if conversation.started_at or conversation.ended_at:
         lines.append(f"- Time range: {conversation.started_at or 'unknown'} to {conversation.ended_at or 'unknown'}")
+    if conversation.product == "manus_api":
+        lines.extend(_render_manus_metadata(conversation))
     lines.append("")
 
     for turn in conversation.turns:
         rendered = _render_turn(turn)
         if rendered:
             lines.extend(rendered)
+
+    if conversation.artifacts:
+        lines.extend(_render_artifacts(conversation))
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -44,6 +50,21 @@ def _heading(conversation: Conversation) -> str:
 
 
 def _anchor(conversation: Conversation) -> str:
+    if conversation.product == "manus_api":
+        task_id = conversation.metadata.get("task_id") or conversation.platform_id
+        fields = [
+            "backfill-agent:manus_api",
+            f"task:{task_id}",
+            "source:manus_api",
+            f"exported_by_machine:{machine_slug(conversation.machine)}",
+        ]
+        account_id = conversation.metadata.get("account_id")
+        workspace_id = conversation.metadata.get("workspace_id")
+        if account_id:
+            fields.append(f"account:{account_id}")
+        if workspace_id:
+            fields.append(f"workspace:{workspace_id}")
+        return "<!-- " + " ".join(str(field) for field in fields) + " -->"
     fields = [
         f"backfill-agent:{conversation.product}",
         f"session:{conversation.conversation_key}",
@@ -54,6 +75,8 @@ def _anchor(conversation: Conversation) -> str:
 
 
 def _source_metadata(conversation: Conversation) -> str:
+    if conversation.product == "manus_api":
+        return "source:manus_api"
     if conversation.source.source_kind == "export":
         return f"export_hash:{conversation.source.content_hash}"
     return f"transcript:{conversation.source.path}"
@@ -72,3 +95,32 @@ def _month_from_timestamp(timestamp: str) -> str:
     if len(timestamp) >= 7 and timestamp[4] == "-":
         return timestamp[:7]
     return "unknown"
+
+
+def _render_manus_metadata(conversation: Conversation) -> list[str]:
+    metadata = conversation.metadata
+    lines = [
+        f"- Manus task ID: {metadata.get('task_id', conversation.platform_id)}",
+        f"- Manus task URL: {metadata.get('task_url', '')}",
+        f"- Manus status: {metadata.get('status', '')}",
+        f"- Manus message events: {metadata.get('message_count', 0)}",
+        f"- Manus artefacts: {metadata.get('artifact_count', len(conversation.artifacts))}",
+    ]
+    return [line for line in lines if not line.endswith(": ")]
+
+
+def _render_artifacts(conversation: Conversation) -> list[str]:
+    lines = ["## Artefacts", ""]
+    for artifact in conversation.artifacts:
+        local_path = artifact.get("local_path") or ""
+        relative = local_path
+        with suppress(ValueError, TypeError):
+            relative = str(Path(local_path).relative_to(conversation.source.path.parent.parent))
+        lines.append(
+            "- "
+            + f"{artifact.get('filename', 'attachment')} "
+            + f"({artifact.get('status', 'unknown')}, {artifact.get('bytes', 0)} bytes, sha256:{artifact.get('sha256', '')})"
+            + (f" -> {relative}" if relative else "")
+        )
+    lines.append("")
+    return lines

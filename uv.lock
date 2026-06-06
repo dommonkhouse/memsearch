@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version == '3.13.*' and sys_platform == 'win32'",
@@ -1467,6 +1467,7 @@ version = "0.4.6"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
+    { name = "httpx" },
     { name = "milvus-lite", marker = "sys_platform != 'win32'" },
     { name = "openai" },
     { name = "pymilvus" },
@@ -1540,6 +1541,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1" },
     { name = "einops", marker = "extra == 'local'", specifier = ">=0.8.2" },
     { name = "google-genai", marker = "extra == 'google'", specifier = ">=1.0" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'jina'", specifier = ">=0.27" },
     { name = "huggingface-hub", marker = "extra == 'onnx'", specifier = ">=0.20" },
     { name = "memsearch", extras = ["google", "voyage", "jina", "mistral", "ollama", "local", "anthropic", "onnx"], marker = "extra == 'all'" },

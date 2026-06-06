@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "created_at": "1780390415",
+      "id": "task-alpha",
+      "status": "stopped",
+      "task_type": "standard",
+      "task_url": "https://manus.im/app/task-alpha",
+      "title": "Alpha task",
+      "updated_at": "1780390534"
+    }
+  ],
+  "has_more": true,
+  "next_cursor": "cursor-2",
+  "ok": true
+}

@@ -103,6 +103,7 @@ class Conversation:
     started_at: str = ""
     ended_at: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+    artifacts: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def conversation_key(self) -> str:

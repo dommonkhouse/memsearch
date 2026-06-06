@@ -128,3 +128,77 @@ def test_pilot_limit_applies_per_product(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
 
     assert payload["converted"] == 2
+
+
+def test_scan_secrets_cli_returns_nonzero_on_hits(tmp_path: Path) -> None:
+    target = tmp_path / "run"
+    target.mkdir()
+    (target / "manifest.json").write_text('{"secret":"OPENAI_API_KEY=abc123456789"}', encoding="utf-8")
+
+    env = os.environ.copy()
+    env.pop("MEMSEARCH_DIR", None)
+    result = subprocess.run(
+        [sys.executable, "-m", "memsearch.backfill.cli", "scan-secrets", str(target)],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode != 0
+    assert "manifest.json" in result.stdout
+
+
+def test_manus_mark_not_indexed_cli_writes_reason_note(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run-1"
+    run_dir.mkdir()
+
+    result = run_backfill("manus-mark-not-indexed", str(run_dir), "--reason", "checksum mismatch")
+    payload = json.loads(result.stdout)
+    note = Path(payload["note_path"]).read_text(encoding="utf-8")
+
+    assert "checksum mismatch" in note
+    assert "must not be passed to MemSearch indexing" in note
+
+
+def test_manus_cards_cli_writes_card_lane(tmp_path: Path) -> None:
+    promoted = tmp_path / "promoted"
+    markdown_root = promoted / "memory" / "manus_cloud" / "manus_api"
+    markdown_root.mkdir(parents=True)
+    (markdown_root / "2026-01.md").write_text(
+        "\n".join(
+            [
+                "## Manus Api session 2026-01-01T00:00:00+00:00: Test task",
+                "<!-- backfill-agent:manus_api task:task-cli source:manus_api exported_by_machine:manus-cloud -->",
+                "",
+                "- Manus task ID: task-cli",
+                "- Manus task URL: https://manus.im/app/task-cli",
+                "- Time range: 2026-01-01T00:00:00+00:00 to 2026-01-01T00:01:00+00:00",
+                "- Manus status: stopped",
+                "- Manus message events: 3",
+                "- Manus artefacts: 0",
+                "",
+                "### User 1780000000000",
+                "",
+                "Find the podcast transcript",
+                "",
+                "### Assistant 1780000001000",
+                "",
+                "I found the transcript.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "cards"
+
+    result = run_backfill("manus-cards", "--promoted", str(promoted), "--output", str(output))
+    payload = json.loads(result.stdout)
+    card_markdown = (output / "memory" / "manus_cloud" / "manus_api" / "2026-01.md").read_text(encoding="utf-8")
+
+    assert payload["task_cards"] == 1
+    assert payload["unique_task_ids"] == 1
+    assert payload["markdown_files"] == 1
+    assert "Find the podcast transcript" in card_markdown
+    assert "I found the transcript." in card_markdown
+    assert "Full cleaned transcript:" in card_markdown
