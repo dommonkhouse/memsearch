@@ -17,5 +17,6 @@ def test_scheduler_render_writes_daily_and_weekly_plists_without_installing(tmp_
     assert summary["installed"] is False
     assert daily["StartCalendarInterval"] == {"Hour": 6, "Minute": 30}
     assert weekly["StartCalendarInterval"] == {"Weekday": 1, "Hour": 6, "Minute": 0}
+    assert Path(daily["ProgramArguments"][0]).is_absolute()
     assert daily["WorkingDirectory"] == str(repo)
     assert str(repo / ".local" / "source-sync-logs") in daily["StandardOutPath"]

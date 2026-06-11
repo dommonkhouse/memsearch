@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import plistlib
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,7 @@ def render_scheduler_plists(
     output.mkdir(parents=True, exist_ok=True)
     log_dir = repo_root / ".local" / "source-sync-logs"
     log_dir.mkdir(parents=True, exist_ok=True)
+    uv_path = shutil.which("uv") or "uv"
 
     rendered = [
         _write_plist(
@@ -30,7 +32,7 @@ def render_scheduler_plists(
             label="com.memsearch.daily-linear-sync",
             repo_root=repo_root,
             args=[
-                "uv",
+                uv_path,
                 "run",
                 "python",
                 "-m",
@@ -48,7 +50,7 @@ def render_scheduler_plists(
             label="com.memsearch.weekly-manus-sync",
             repo_root=repo_root,
             args=[
-                "uv",
+                uv_path,
                 "run",
                 "python",
                 "-m",
