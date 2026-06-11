@@ -28,6 +28,7 @@ fi
 
 python3 -c '
 import json, sys
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 def find_last_turn_start(lines):
     """Find the index of the last real user message (string or array-format content)."""
@@ -93,7 +94,7 @@ def format_turn(lines):
 
 # --- Main ---
 transcript_path = sys.argv[1]
-with open(transcript_path) as f:
+with open(transcript_path, encoding="utf-8", errors="replace") as f:
     lines = f.readlines()
 
 if not lines:
