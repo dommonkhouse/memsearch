@@ -89,6 +89,8 @@ def sync_linear(
             collection=collection,
             dry_run=dry_run or not index,
         )
+        if index_result.returncode != 0:
+            raise RuntimeError(f"Linear indexing failed: {index_result.stderr or index_result.stdout}")
         if not dry_run:
             next_state = state.record_success(
                 machine=machine,
@@ -221,6 +223,8 @@ def sync_manus(
         if card_hits:
             raise RuntimeError(f"Manus card scan found {len(card_hits)} hit(s)")
         index_result = index_markdown_cards(card_root / "memory" / "manus_cloud" / "manus_api", collection=collection, dry_run=not index)
+        if index_result.returncode != 0:
+            raise RuntimeError(f"Manus indexing failed: {index_result.stderr or index_result.stdout}")
         next_state = state.record_success(
             machine=machine,
             run_id=run_id,

@@ -28,4 +28,5 @@ def test_freshness_report_includes_state_card_counts_and_proof_preview(tmp_path:
     assert linear["state_status"] == "present"
     assert linear["card_count"] == 1
     assert linear["proof_searches"][0]["status"] == "preview"
+    assert "--json-output" in linear["proof_searches"][0]["command"]
     assert manus["state_status"] == "missing-state"

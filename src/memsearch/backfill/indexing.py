@@ -47,7 +47,7 @@ def search_proof(
     runner: Runner | None = None,
     dry_run: bool = False,
 ) -> IndexResult:
-    command = ["memsearch", "search", query, "--collection", collection, "--json"]
+    command = ["memsearch", "search", query, "--collection", collection, "--json-output"]
     if dry_run:
         return IndexResult(command=command, returncode=0, skipped=True)
     run = runner or _run

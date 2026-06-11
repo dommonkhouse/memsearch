@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
+from memsearch.backfill import indexing
 from memsearch.backfill.linear_api import LinearIssue
 from memsearch.backfill.source_state import read_source_state, write_source_state
 from memsearch.backfill.source_sync import sync_linear, sync_manus
@@ -74,6 +76,27 @@ def test_linear_sync_updates_state_when_not_dry_run(tmp_path: Path) -> None:
     assert state.last_run_id == summary.run_id
     assert state.proof_ids == ["MON-318"]
     assert json.loads((Path(summary.output_dir) / "card-manifest.json").read_text(encoding="utf-8"))["issue_ids"] == ["MON-318"]
+
+
+def test_linear_sync_raises_when_index_command_fails(tmp_path: Path, monkeypatch) -> None:
+    def failing_runner(command: list[str]) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, returncode=2, stdout="", stderr="index failed")
+
+    monkeypatch.setattr(indexing, "_run", failing_runner)
+
+    try:
+        sync_linear(
+            machine="Test Mac",
+            since="2026-06-10T00:00:00Z",
+            output_root=tmp_path / "linear",
+            state_dir=tmp_path / "state",
+            index=True,
+            client=FakeLinearClient(),
+        )
+    except RuntimeError as exc:
+        assert "index failed" in str(exc)
+    else:
+        raise AssertionError("sync_linear should fail when indexing fails")
 
 
 def test_manus_sync_blocks_without_prior_diff_state_unless_all_is_explicit(tmp_path: Path) -> None:
