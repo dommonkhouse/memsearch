@@ -24,3 +24,14 @@ def test_source_state_round_trips_and_lock_is_removed(tmp_path: Path) -> None:
     assert not (tmp_path / "linear.lock").exists()
     assert loaded.last_run_id == "run-1"
     assert loaded.proof_ids == ["MON-318"]
+
+
+def test_source_lock_replaces_stale_pid_lock(tmp_path: Path) -> None:
+    lock = tmp_path / "linear.lock"
+    lock.write_text("2026-06-11T00:00:00Z\npid=999999\n", encoding="utf-8")
+
+    with source_lock(tmp_path, "linear") as lock_path:
+        assert lock_path == lock
+        assert "pid=" in lock.read_text(encoding="utf-8")
+
+    assert not lock.exists()

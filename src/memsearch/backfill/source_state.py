@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
@@ -114,9 +115,33 @@ def source_lock(state_dir: Path, source: str) -> Iterator[Path]:
     state_dir.mkdir(parents=True, exist_ok=True)
     path = state_dir / f"{source}.lock"
     try:
+        if path.exists() and _stale_lock(path):
+            path.unlink()
         with path.open("x", encoding="utf-8") as handle:
             handle.write(utc_now_iso() + "\n")
+            handle.write(f"pid={os.getpid()}\n")
         yield path
     finally:
         if path.exists():
             path.unlink()
+
+
+def _stale_lock(path: Path) -> bool:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    pid_line = next((line for line in lines if line.startswith("pid=")), "")
+    if not pid_line:
+        return False
+    try:
+        pid = int(pid_line.removeprefix("pid="))
+    except ValueError:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        return False
+    return False
