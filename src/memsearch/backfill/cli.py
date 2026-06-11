@@ -6,7 +6,10 @@ from pathlib import Path
 
 import click
 
+from .freshness import source_freshness_json
 from .inventory import collect_inventory
+from .linear_api import LinearApiClient
+from .linear_cards import write_linear_cards, write_linear_export
 from .manifest import manifest_path, read_manifest, write_manifest
 from .manus_api import (
     ManusApiClient,
@@ -25,6 +28,8 @@ from .parsers.codex import parse_codex
 from .parsers.manus import classify_manus_source
 from .redact import scan_path_for_secrets, secret_hits_to_json
 from .render import output_path_for_conversation, render_conversation
+from .scheduler import render_scheduler_plists
+from .source_sync import summary_json, sync_linear, sync_manus
 
 
 @click.group()
@@ -154,6 +159,131 @@ def manus_cards(promoted_dir: Path, output: Path, force: bool) -> None:
 def manus_mark_not_indexed(run_dir: Path, reason: str) -> None:
     note_path = mark_manus_run_not_indexed(run_dir, reason=reason)
     click.echo(json.dumps({"note_path": str(note_path)}, indent=2, sort_keys=True))
+
+
+@main.command("linear-export")
+@click.option("--machine", required=True)
+@click.option("--since", required=True)
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+@click.option("--run-id", default=None)
+@click.option("--max-issues", type=int, default=None)
+def linear_export(machine: str, since: str, output: Path, run_id: str | None, max_issues: int | None) -> None:
+    run_id = run_id or "linear-export"
+    client = LinearApiClient()
+    issues = client.updated_issues(since=since, limit=max_issues)
+    summary = write_linear_export(output, issues=issues, machine=machine, since=since, run_id=run_id)
+    click.echo(json.dumps(summary, indent=2, sort_keys=True))
+
+
+@main.command("linear-cards")
+@click.option("--machine", required=True)
+@click.option("--run", "run_dir", type=click.Path(path_type=Path), required=True)
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+@click.option("--force", is_flag=True)
+def linear_cards(machine: str, run_dir: Path, output: Path, force: bool) -> None:
+    summary = write_linear_cards(run_dir, output, machine=machine, force=force)
+    hits = scan_path_for_secrets(output)
+    if hits:
+        raise click.ClickException(f"Linear card secret scan found {len(hits)} hit(s)")
+    click.echo(json.dumps(summary, indent=2, sort_keys=True))
+
+
+@main.group("source-sync")
+def source_sync_group() -> None:
+    """Refresh external sources into MemSearch-ready Markdown cards."""
+
+
+@source_sync_group.command("linear")
+@click.option("--machine", required=True)
+@click.option("--since", default=None)
+@click.option("--output-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/linear"))
+@click.option("--state-dir", type=click.Path(path_type=Path), default=Path(".local/source-sync-state"))
+@click.option("--dry-run", is_flag=True)
+@click.option("--index", "index_cards", is_flag=True)
+@click.option("--collection", default="memsearch_chunks")
+@click.option("--max-issues", type=int, default=None)
+def source_sync_linear(
+    machine: str,
+    since: str | None,
+    output_root: Path,
+    state_dir: Path,
+    dry_run: bool,
+    index_cards: bool,
+    collection: str,
+    max_issues: int | None,
+) -> None:
+    summary = sync_linear(
+        machine=machine,
+        since=since,
+        output_root=output_root,
+        state_dir=state_dir,
+        dry_run=dry_run,
+        index=index_cards,
+        collection=collection,
+        max_issues=max_issues,
+    )
+    click.echo(summary_json(summary))
+
+
+@source_sync_group.command("manus")
+@click.option("--machine", required=True)
+@click.option("--since", default=None)
+@click.option("--output-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/manus-cloud/manus-api"))
+@click.option("--state-dir", type=click.Path(path_type=Path), default=Path(".local/source-sync-state"))
+@click.option("--all", "export_all", is_flag=True)
+@click.option("--run-id", default=None)
+@click.option("--resume", is_flag=True)
+@click.option("--dry-run", is_flag=True)
+@click.option("--index", "index_cards", is_flag=True)
+@click.option("--collection", default="memsearch_chunks")
+@click.option("--max-tasks", type=int, default=None)
+def source_sync_manus(
+    machine: str,
+    since: str | None,
+    output_root: Path,
+    state_dir: Path,
+    export_all: bool,
+    run_id: str | None,
+    resume: bool,
+    dry_run: bool,
+    index_cards: bool,
+    collection: str,
+    max_tasks: int | None,
+) -> None:
+    summary = sync_manus(
+        machine=machine,
+        since=since,
+        output_root=output_root,
+        state_dir=state_dir,
+        export_all=export_all,
+        run_id=run_id,
+        resume=resume,
+        dry_run=dry_run,
+        index=index_cards,
+        collection=collection,
+        max_tasks=max_tasks,
+    )
+    click.echo(summary_json(summary))
+
+
+@main.command("source-freshness")
+@click.option("--state-dir", type=click.Path(path_type=Path), default=Path(".local/source-sync-state"))
+@click.option("--memory-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory"))
+@click.option("--collection", default="memsearch_chunks")
+@click.option("--run-proof", is_flag=True)
+def source_freshness(state_dir: Path, memory_root: Path, collection: str, run_proof: bool) -> None:
+    click.echo(source_freshness_json(state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof))
+
+
+@main.command("scheduler-render")
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+@click.option("--repo-root", type=click.Path(path_type=Path), default=Path.cwd())
+@click.option("--machine", default="")
+def scheduler_render(output: Path, repo_root: Path, machine: str) -> None:
+    if not machine:
+        machine = "unknown-machine"
+    summary = render_scheduler_plists(output=output, repo_root=repo_root.resolve(), machine=machine)
+    click.echo(json.dumps(summary, indent=2, sort_keys=True))
 
 
 def _convert(

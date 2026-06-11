@@ -59,6 +59,14 @@ uv run python -m memsearch.backfill.cli manus-cards --promoted .local/manus-api-
 uv run python -m memsearch.backfill.cli scan-secrets .local/manus-api-memsearch-cards/<run_id>
 ```
 
+Weekly freshness command:
+
+```bash
+uv run python -m memsearch.backfill.cli source-sync manus --machine "$(scutil --get ComputerName)" --dry-run --max-tasks 5
+```
+
+The weekly Manus route is intentionally conservative. It compares fresh task IDs and `updated_at` values against `.local/source-sync-state/manus.json`. If there is no prior diff state, or if Manus task timestamps are not reliable, it reports a blocked weekly sync and refuses to perform a silent full export. Use `--all` only when a full export has been explicitly approved.
+
 Safety gates:
 
 - Manus API client is read-only. It only calls `GET task.list`, `GET task.listMessages`, and attachment downloads.
@@ -69,6 +77,7 @@ Safety gates:
 - The MemSearch recall lane is generated separately under `.local/manus-api-memsearch-cards/<run_id>/memory/manus_cloud/manus_api/<yyyy-mm>-partN.md`.
 - The card lane is the practical MemSearch indexing source. It stores task/session cards with task IDs, Manus URLs, artefact counts, user requests, assistant outcomes, tool hints, and pointers back to the full cleaned transcript.
 - Do not index full raw event logs directly unless there is a separate reason. Raw tool payloads create low-value embeddings and the local ONNX provider was too slow for full-transcript ingestion at this scale.
+- Weekly automation must keep the same gates: verify run, scan raw run, promote sanitised Markdown, scan promoted output, generate cards, scan cards, then optionally index only when `--index` is explicitly provided.
 - Promotion writes `promotion-manifest.json`, `excluded-secrets.json`, `rotation-report.json`, `rotation-report.md`, and `summary.json`.
 - `excluded-secrets.json` and rotation reports must not contain raw secret values. They use detector names, severity, task IDs, checksums, and redacted relative paths only.
 - If raw scan hits exist, Dom must acknowledge the rotation report with `ROTATE-ACK <run_id>` before any MemSearch indexing.
@@ -76,6 +85,51 @@ Safety gates:
 - Drop the temporary review collection after approval or rejection.
 - Canonical indexing is a re-index from the card Markdown files only. Do not copy vectors from the temporary collection.
 - Do not index into the canonical collection until `verify-manus-run`, promoted-output `scan-secrets`, card-output `scan-secrets`, temporary search review, and explicit manual approval all pass.
+
+## Linear route
+
+Linear is a daily freshness source. It fills the gap where session memory knows about past agent work, but not issue comments or execution notes written directly into Linear.
+
+Supported commands:
+
+```bash
+uv run python -m memsearch.backfill.cli linear-export --machine "$(scutil --get ComputerName)" --since 2026-06-10T00:00:00Z --output .local/linear-export/run-1
+uv run python -m memsearch.backfill.cli linear-cards --machine "$(scutil --get ComputerName)" --run .local/linear-export/run-1 --output .local/linear-cards/run-1
+uv run python -m memsearch.backfill.cli source-sync linear --machine "$(scutil --get ComputerName)" --dry-run --max-issues 5
+```
+
+The automation route uses `LINEAR_API_KEY` against Linear GraphQL. This is the durable route for Codex because the app connector session can expire.
+
+State and output:
+
+- Source state: `.local/source-sync-state/linear.json`.
+- Dry-run previews: `.local/source-sync-dry-runs/linear/<run_id>/`.
+- Default card output root: `/Users/dominicmonkhouse/Projects/.memsearch/memory/linear`.
+- Card anchors include `backfill-agent:linear`, the Linear issue identifier, `source:linear`, and the running machine slug.
+
+Safety gates:
+
+- Linear export is read-only GraphQL.
+- Linear cards run `scan_path_for_secrets` before the command reports success.
+- Daily sync reads `last_success_at` from state when `--since` is omitted.
+- `--dry-run` writes preview artefacts and reports the state update it would make, but does not update state.
+- Indexing is opt-in with `--index` and uses the shared `src/memsearch/backfill/indexing.py` wrapper.
+
+## Source freshness policy
+
+Cadence:
+
+- Linear: daily at 06:30 local time.
+- Manus: weekly on Monday at 06:00 local time.
+
+Shared commands:
+
+```bash
+uv run python -m memsearch.backfill.cli source-freshness
+uv run python -m memsearch.backfill.cli scheduler-render --output .local/launchagents --machine "$(scutil --get ComputerName)"
+```
+
+The scheduler renderer only writes plist files. It does not run `launchctl` and does not install anything. Installing LaunchAgents is an approval-gated future step.
 
 Validated review indexing command:
 
