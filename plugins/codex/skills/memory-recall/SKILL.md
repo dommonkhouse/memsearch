@@ -9,7 +9,7 @@ You are performing memory retrieval for memsearch. Search past memories and retu
 
 Determine the collection name by running:
 ```
-bash -c 'if [ -n "${MEMSEARCH_DIR:-}" ]; then bash __INSTALL_DIR__/scripts/derive-collection.sh "$MEMSEARCH_DIR"; else root=$(git rev-parse --show-toplevel 2>/dev/null || true); if [ -n "$root" ]; then bash __INSTALL_DIR__/scripts/derive-collection.sh "$root"; else bash __INSTALL_DIR__/scripts/derive-collection.sh; fi; fi'
+bash -c 'shared="$HOME/Projects/.memsearch"; if [ -n "${MEMSEARCH_DIR:-}" ]; then bash __INSTALL_DIR__/scripts/derive-collection.sh "$MEMSEARCH_DIR"; elif [ -d "$shared" ]; then bash __INSTALL_DIR__/scripts/derive-collection.sh "$shared"; else root=$(git rev-parse --show-toplevel 2>/dev/null || true); if [ -n "$root" ]; then bash __INSTALL_DIR__/scripts/derive-collection.sh "$root"; else bash __INSTALL_DIR__/scripts/derive-collection.sh; fi; fi'
 ```
 
 ## Steps
@@ -34,9 +34,9 @@ bash -c 'if [ -n "${MEMSEARCH_DIR:-}" ]; then bash __INSTALL_DIR__/scripts/deriv
 
 If the user's question is vague or you can't form a concrete search query, explore the raw markdown first — it is the source of truth for memory:
 
-- `MDIR="${MEMSEARCH_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.memsearch}"; ls -t "$MDIR/memory/" | head -10` — recent daily logs
-- `MDIR="${MEMSEARCH_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.memsearch}"; grep -h "^## " "$MDIR/memory/"*.md | sort -u | tail -40` — session headings across all days
-- `MDIR="${MEMSEARCH_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.memsearch}"; cat "$MDIR/memory/<YYYY-MM-DD>.md"` — read a specific day
+- `shared="$HOME/Projects/.memsearch"; MDIR="${MEMSEARCH_DIR:-}"; if [ -z "$MDIR" ]; then if [ -d "$shared" ]; then MDIR="$shared"; else MDIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.memsearch"; fi; fi; ls -t "$MDIR/memory/" | head -10` — recent daily logs
+- `shared="$HOME/Projects/.memsearch"; MDIR="${MEMSEARCH_DIR:-}"; if [ -z "$MDIR" ]; then if [ -d "$shared" ]; then MDIR="$shared"; else MDIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.memsearch"; fi; fi; grep -h "^## " "$MDIR/memory/"*.md | sort -u | tail -40` — session headings across all days
+- `shared="$HOME/Projects/.memsearch"; MDIR="${MEMSEARCH_DIR:-}"; if [ -z "$MDIR" ]; then if [ -d "$shared" ]; then MDIR="$shared"; else MDIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.memsearch"; fi; fi; cat "$MDIR/memory/<YYYY-MM-DD>.md"` — read a specific day
 
 Once a concrete topic jumps out, go back to `memsearch search` with a specific query.
 
