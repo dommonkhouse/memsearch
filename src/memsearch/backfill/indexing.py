@@ -32,6 +32,8 @@ def index_markdown_cards(
         "--collection",
         collection,
         "--no-prune",
+        "--batch-size",
+        "4",
         "--max-chunk-size",
         "3000",
     ]
