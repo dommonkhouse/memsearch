@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import plistlib
+import shlex
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,23 +26,28 @@ def render_scheduler_plists(
     log_dir = repo_root / ".local" / "source-sync-logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     uv_path = shutil.which("uv") or "uv"
+    env_path = Path.home() / ".secrets" / "mcp.env"
 
     rendered = [
         _write_plist(
             output / "com.memsearch.daily-linear-sync.plist",
             label="com.memsearch.daily-linear-sync",
             repo_root=repo_root,
-            args=[
-                uv_path,
-                "run",
-                "python",
-                "-m",
-                "memsearch.backfill.cli",
-                "source-sync",
-                "linear",
-                "--machine",
-                machine,
-            ],
+            args=_shell_args(
+                repo_root,
+                env_path,
+                [
+                    uv_path,
+                    "run",
+                    "python",
+                    "-m",
+                    "memsearch.backfill.cli",
+                    "source-sync",
+                    "linear",
+                    "--machine",
+                    machine,
+                ],
+            ),
             calendar={"Hour": 6, "Minute": 30},
             log_dir=log_dir,
         ),
@@ -49,17 +55,21 @@ def render_scheduler_plists(
             output / "com.memsearch.weekly-manus-sync.plist",
             label="com.memsearch.weekly-manus-sync",
             repo_root=repo_root,
-            args=[
-                uv_path,
-                "run",
-                "python",
-                "-m",
-                "memsearch.backfill.cli",
-                "source-sync",
-                "manus",
-                "--machine",
-                machine,
-            ],
+            args=_shell_args(
+                repo_root,
+                env_path,
+                [
+                    uv_path,
+                    "run",
+                    "python",
+                    "-m",
+                    "memsearch.backfill.cli",
+                    "source-sync",
+                    "manus",
+                    "--machine",
+                    machine,
+                ],
+            ),
             calendar={"Weekday": 1, "Hour": 6, "Minute": 0},
             log_dir=log_dir,
         ),
@@ -71,6 +81,19 @@ def render_scheduler_plists(
     }
     (output / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return summary
+
+
+def _shell_args(repo_root: Path, env_path: Path, command: list[str]) -> list[str]:
+    shell_command = " && ".join(
+        [
+            "set -a",
+            f"source {shlex.quote(str(env_path))}",
+            "set +a",
+            f"cd {shlex.quote(str(repo_root))}",
+            " ".join(shlex.quote(part) for part in command),
+        ]
+    )
+    return ["/bin/zsh", "-lc", shell_command]
 
 
 def _write_plist(
