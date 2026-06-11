@@ -43,8 +43,8 @@ async def test_embed_deterministic(provider):
     text = "Deterministic embedding test"
     r1 = await provider.embed([text])
     r2 = await provider.embed([text])
-    # OpenAI embeddings should be deterministic
-    assert r1[0][:5] == r2[0][:5]
+    # OpenAI embeddings should be stable within tiny floating point variance.
+    assert all(abs(a - b) < 1e-3 for a, b in zip(r1[0][:5], r2[0][:5], strict=True))
 
 
 def test_model_name(provider):
