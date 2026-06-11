@@ -81,7 +81,7 @@ def test_linear_sync_updates_state_when_not_dry_run(tmp_path: Path) -> None:
 
 def test_linear_sync_raises_when_index_command_fails(tmp_path: Path, monkeypatch) -> None:
     def failing_runner(command: list[str]) -> subprocess.CompletedProcess[str]:
-        assert command[:3] == [sys.executable, "-m", "memsearch.cli"]
+        assert command[:3] == [sys.executable, "-m", "memsearch"]
         assert "--no-prune" in command
         assert command[command.index("--batch-size") + 1] == "4"
         return subprocess.CompletedProcess(command, returncode=2, stdout="", stderr="index failed")

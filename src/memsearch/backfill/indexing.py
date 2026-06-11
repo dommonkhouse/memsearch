@@ -64,4 +64,4 @@ def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def _memsearch_module_command() -> list[str]:
-    return [sys.executable, "-m", "memsearch.cli"]
+    return [sys.executable, "-m", "memsearch"]
