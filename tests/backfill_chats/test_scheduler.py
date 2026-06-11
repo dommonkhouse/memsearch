@@ -20,6 +20,8 @@ def test_scheduler_render_writes_daily_and_weekly_plists_without_installing(tmp_
     assert daily["ProgramArguments"][0] == "/bin/zsh"
     assert Path(daily["ProgramArguments"][0]).is_absolute()
     assert "source" in daily["ProgramArguments"][2]
+    assert "--index" in daily["ProgramArguments"][2]
+    assert "--index" in weekly["ProgramArguments"][2]
     assert ".secrets/mcp.env" in daily["ProgramArguments"][2]
     assert daily["WorkingDirectory"] == str(repo)
     assert str(repo / ".local" / "source-sync-logs") in daily["StandardOutPath"]
