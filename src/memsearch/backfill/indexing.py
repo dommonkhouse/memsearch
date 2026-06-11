@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import shutil
 import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,7 +26,7 @@ def index_markdown_cards(
     dry_run: bool = False,
 ) -> IndexResult:
     command = [
-        _memsearch_command(),
+        *_memsearch_module_command(),
         "index",
         str(card_dir),
         "--collection",
@@ -51,7 +51,7 @@ def search_proof(
     runner: Runner | None = None,
     dry_run: bool = False,
 ) -> IndexResult:
-    command = [_memsearch_command(), "search", query, "--collection", collection, "--json-output"]
+    command = [*_memsearch_module_command(), "search", query, "--collection", collection, "--json-output"]
     if dry_run:
         return IndexResult(command=command, returncode=0, skipped=True)
     run = runner or _run
@@ -63,8 +63,5 @@ def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=False, capture_output=True, text=True)
 
 
-def _memsearch_command() -> str:
-    user_bin = Path.home() / ".local" / "bin" / "memsearch"
-    if user_bin.is_file():
-        return str(user_bin)
-    return shutil.which("memsearch") or "memsearch"
+def _memsearch_module_command() -> list[str]:
+    return [sys.executable, "-m", "memsearch.cli"]
