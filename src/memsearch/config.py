@@ -26,7 +26,14 @@ GLOBAL_CONFIG_PATH = Path("~/.memsearch/config.toml").expanduser()
 PROJECT_CONFIG_PATH = Path(".memsearch.toml")
 
 # Fields that should be parsed as int when set via CLI strings
-_INT_FIELDS = {"max_chunk_size", "overlap_lines", "debounce_ms", "batch_size", "min_interval_hours"}
+_INT_FIELDS = {
+    "max_chunk_size",
+    "overlap_lines",
+    "debounce_ms",
+    "batch_size",
+    "min_interval_hours",
+    "request_timeout_seconds",
+}
 _BOOL_FIELDS = {"enabled"}
 
 
@@ -69,6 +76,17 @@ class WatchConfig:
 @dataclass
 class RerankerConfig:
     model: str = ""  # empty = disabled; set to model ID to enable
+
+
+@dataclass
+class GraphitiConfig:
+    enabled: bool = False
+    transport: str = "mcp-streamable-http"
+    endpoint: str = "http://127.0.0.1:8018/mcp/"
+    group_id: str = ""
+    batch_size: int = 10
+    request_timeout_seconds: int = 120
+    manifest_path: str = ".memsearch/graphiti-manifest.json"
 
 
 @dataclass
@@ -164,6 +182,7 @@ class MemSearchConfig:
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     watch: WatchConfig = field(default_factory=WatchConfig)
     reranker: RerankerConfig = field(default_factory=RerankerConfig)
+    graphiti: GraphitiConfig = field(default_factory=GraphitiConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     prompts: PromptsConfig = field(default_factory=PromptsConfig)
     plugins: PluginsConfig = field(default_factory=PluginsConfig)
@@ -177,6 +196,7 @@ _SECTION_CLASSES: dict[str, type] = {
     "chunking": ChunkingConfig,
     "watch": WatchConfig,
     "reranker": RerankerConfig,
+    "graphiti": GraphitiConfig,
     "llm": LLMConfig,
     "prompts": PromptsConfig,
     "plugins": PluginsConfig,
