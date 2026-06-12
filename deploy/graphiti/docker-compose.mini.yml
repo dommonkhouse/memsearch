@@ -1,0 +1,11 @@
+services:
+  falkordb:
+    environment:
+      BROWSER: "0"
+
+  graphiti-mcp:
+    env_file:
+      - path: /Users/dominicmonkhouse/.secrets/graphiti.env
+        required: true
+    ports:
+      - "127.0.0.1:8018:8000"

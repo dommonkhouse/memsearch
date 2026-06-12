@@ -1,0 +1,38 @@
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    environment:
+      FALKORDB_PASSWORD: ${FALKORDB_PASSWORD:-}
+      BROWSER: "0"
+    volumes:
+      - falkordb_data:/var/lib/falkordb/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  graphiti-mcp:
+    image: zepai/knowledge-graph-mcp:standalone
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    environment:
+      FALKORDB_URI: redis://falkordb:6379
+      FALKORDB_PASSWORD: ${FALKORDB_PASSWORD:-}
+      FALKORDB_DATABASE: ${FALKORDB_DATABASE:-default_db}
+      GRAPHITI_GROUP_ID: ${GRAPHITI_GROUP_ID:-memsearch}
+      SEMAPHORE_LIMIT: ${SEMAPHORE_LIMIT:-10}
+      CONFIG_PATH: /app/mcp/config/config-docker-falkordb.yaml
+    volumes:
+      - mcp_logs:/var/log/graphiti
+    command: ["uv", "run", "--no-sync", "main.py", "--config", "config/config-docker-falkordb.yaml"]
+
+volumes:
+  falkordb_data:
+    name: graphiti_mon316_falkordb_data
+    driver: local
+  mcp_logs:
+    name: graphiti_mon316_mcp_logs
+    driver: local
