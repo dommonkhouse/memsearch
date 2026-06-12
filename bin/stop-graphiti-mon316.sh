@@ -4,6 +4,8 @@ set -euo pipefail
 PROFILE="graphiti-mon316"
 COLIMA_HOME="/Volumes/SSD/graphiti-mon316/colima-home"
 LOG_DIR="/Volumes/SSD/graphiti-mon316/logs"
+PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+SOCKET="$COLIMA_HOME/$PROFILE/docker.sock"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_BASE="$REPO_ROOT/deploy/graphiti/docker-compose.yml"
 COMPOSE_MINI="$REPO_ROOT/deploy/graphiti/docker-compose.mini.yml"
@@ -11,16 +13,16 @@ COMPOSE_MINI="$REPO_ROOT/deploy/graphiti/docker-compose.mini.yml"
 mkdir -p "$LOG_DIR"
 exec > >(tee -a "$LOG_DIR/stop.log") 2>&1
 
-echo "[$(date -Is)] stopping $PROFILE"
+echo "[$(date '+%Y-%m-%dT%H:%M:%S%z')] stopping $PROFILE"
 
-SOCKET="$(/usr/bin/find "$COLIMA_HOME" -name docker.sock -type s -print | /usr/bin/grep "/$PROFILE/docker.sock" | /usr/bin/head -n 1)"
-if [[ -z "$SOCKET" ]]; then
-  echo "Could not find dedicated Docker socket under $COLIMA_HOME" >&2
+if [[ ! -S "$SOCKET" ]]; then
+  echo "Could not find dedicated Docker socket: $SOCKET" >&2
   exit 1
 fi
 
 export COLIMA_HOME
 export DOCKER_HOST="unix://$SOCKET"
+export PATH
 unset DOCKER_CONTEXT
 
 if [[ "$DOCKER_HOST" == *"/.colima/default/docker.sock"* ]]; then
@@ -42,4 +44,4 @@ if docker context inspect colima >/dev/null 2>&1; then
   docker context use colima >/dev/null 2>&1 || true
 fi
 
-echo "[$(date -Is)] stopped $PROFILE"
+echo "[$(date '+%Y-%m-%dT%H:%M:%S%z')] stopped $PROFILE"

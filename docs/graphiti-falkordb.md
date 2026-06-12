@@ -1,47 +1,53 @@
 # Graphiti FalkorDB pilot
 
-This guide records the intended local pilot route for adding Graphiti and FalkorDB as an optional MemSearch graph recall layer.
+This guide records the verified Mac Mini route for adding Graphiti and FalkorDB as an optional MemSearch graph recall layer.
 
 ## Current status
 
-Runtime preflight on 2026-06-11 11:21:43 BST stopped at the container/runtime gate:
+Graphiti/FalkorDB is running on the Mac Mini `dom-kamet.tailf78a36.ts.net` as of 2026-06-12.
 
-- `docker` was not found on `PATH`.
-- `colima` was not found on `PATH`.
-- `podman` was not found on `PATH`.
-- `OPENAI_API_KEY` was available through local secrets.
-- Ports `8018` and `6379` were free.
+- Runtime host: Mac Mini, Tailscale IP `100.72.169.59`.
+- Runtime storage: `/Volumes/SSD/graphiti-mon316`.
+- Container runtime: dedicated Colima profile `graphiti-mon316`, with `COLIMA_HOME=/Volumes/SSD/graphiti-mon316/colima-home`.
+- Graphiti container binding: `127.0.0.1:18018->8000`.
+- Tailnet endpoint: `http://dom-kamet.tailf78a36.ts.net:8018/health`.
+- FalkorDB is internal to the Graphiti Compose network and does not publish `6379`.
+- Existing Milvus continues to run on the default Colima profile.
+- Tailscale Funnel is off. Tailscale Serve is not enabled on the Tailnet.
 
-No Graphiti/FalkorDB process was started, and no runtime config was created.
+The Tailnet MCP route uses a supervised SSH local forward on the Mini:
+
+```text
+100.72.169.59:8018 -> 127.0.0.1:18018
+```
+
+The Graphiti MCP server has DNS-rebinding protection enabled for localhost hosts. MCP clients connecting through the Tailnet route must use:
+
+```text
+URL:    http://dom-kamet.tailf78a36.ts.net:8018/mcp
+Header: Host: 127.0.0.1:18018
+```
+
+Do not use `/mcp/` with a trailing slash. The server redirects `/mcp/` to `/mcp` using the Host header, which can break remote clients.
 
 ## Architecture
 
 - Markdown remains the source of truth.
 - Milvus remains the primary automatic recall index.
 - Graphiti/FalkorDB is a derived sidecar index.
-- The pilot must use explicit CLI commands only. Do not wire graph recall into Claude or Codex prompt injection in this version.
+- The Graphiti runtime is isolated from Milvus by a dedicated Colima profile and Docker socket.
+- The pilot uses explicit MCP calls only. Do not wire graph recall into Claude or Codex prompt injection in this version.
 - The graph must be rebuildable from Markdown memory files.
 
-## Planned runtime route
+## Runtime files
 
-When a container runtime is available:
-
-1. Clone Graphiti outside the MemSearch repo:
-
-```bash
-cd /Users/dominicmonkhouse/Projects
-test -d graphiti/.git || git clone https://github.com/getzep/graphiti.git graphiti
-git -C graphiti fetch --all --prune
-git -C graphiti status --short --branch
-```
-
-2. Use Graphiti's documented MCP server Docker Compose route with FalkorDB.
-
-3. Configure Graphiti MCP to listen on `127.0.0.1:8018`, not the default `8000`, because port `8000` was occupied during planning.
-
-4. Keep secrets in ignored local `.env` files or `~/.secrets/mcp.env`. Do not commit keys.
-
-5. Record the exact Graphiti commit or tag and FalkorDB image before running the live smoke test.
+- Repo checkout on Mini: `~/Projects/memsearch-mon316-graphiti-mini`.
+- Dedicated Colima home: `/Volumes/SSD/graphiti-mon316/colima-home`.
+- Logs: `/Volumes/SSD/graphiti-mon316/logs`.
+- Secrets: `~/.secrets/graphiti.env`.
+- Graphiti LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316.plist`.
+- Awake LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-awake.plist`.
+- Tailnet forward LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-tailnet-proxy.plist`.
 
 ## MemSearch config
 
@@ -51,7 +57,8 @@ Example local configuration:
 [graphiti]
 enabled = true
 transport = "mcp-streamable-http"
-endpoint = "http://127.0.0.1:8018/mcp/"
+endpoint = "http://dom-kamet.tailf78a36.ts.net:8018/mcp"
+host_header = "127.0.0.1:18018"
 group_id = "ms_memsearch_ae2d4f9b"
 batch_size = 10
 request_timeout_seconds = 120
@@ -61,9 +68,29 @@ manifest_path = ".memsearch/graphiti-manifest.json"
 ## Planned commands
 
 ```bash
-memsearch graph-status --endpoint http://127.0.0.1:8018/mcp/
+memsearch graph-status --endpoint http://dom-kamet.tailf78a36.ts.net:8018/mcp --host-header 127.0.0.1:18018
 memsearch graph-index <memory-dir> --limit 10 --group-id ms_memsearch_ae2d4f9b
 memsearch graph-search "what changed about Kuzu" --group-id ms_memsearch_ae2d4f9b --top-k 5
+```
+
+## Operations
+
+Start or reconcile Graphiti on the Mini:
+
+```bash
+~/Projects/memsearch-mon316-graphiti-mini/bin/start-graphiti-mon316.sh
+```
+
+Stop only Graphiti containers, leaving volumes and Milvus untouched:
+
+```bash
+~/Projects/memsearch-mon316-graphiti-mini/bin/stop-graphiti-mon316.sh
+```
+
+Stop the dedicated Graphiti Colima profile too:
+
+```bash
+~/Projects/memsearch-mon316-graphiti-mini/bin/stop-graphiti-mon316.sh --stop-colima
 ```
 
 ## Rollback
@@ -71,3 +98,5 @@ memsearch graph-search "what changed about Kuzu" --group-id ms_memsearch_ae2d4f9
 Stop or remove only the Graphiti/FalkorDB runtime. Do not delete Markdown memory files, Milvus data, or `.memsearch/memory`.
 
 The derived Graphiti manifest can be left in `.memsearch/graphiti-manifest.json`; `.memsearch/` is already ignored by git.
+
+The runtime is currently login-session supervised, not reboot-without-login guaranteed. Reboot-proof operation remains blocked until the Mini has an approved admin-level power/login setup.

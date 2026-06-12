@@ -8,4 +8,4 @@ services:
       - path: /Users/dominicmonkhouse/.secrets/graphiti.env
         required: true
     ports:
-      - "127.0.0.1:8018:8000"
+      - "127.0.0.1:18018:8000"
