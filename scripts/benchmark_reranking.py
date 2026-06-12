@@ -43,16 +43,10 @@ def source_matches(actual: str, expected: str) -> bool:
     actual_parts = _source_parts(actual)
     expected_parts = _source_parts(expected)
 
-    return bool(
-        actual_parts
-        and expected_parts
-        and actual_parts[-len(expected_parts) :] == expected_parts
-    )
+    return bool(actual_parts and expected_parts and actual_parts[-len(expected_parts) :] == expected_parts)
 
 
-def score_query_results(
-    results: Sequence[Mapping[str, object]], expected_sources: Sequence[str]
-) -> QueryScore:
+def score_query_results(results: Sequence[Mapping[str, object]], expected_sources: Sequence[str]) -> QueryScore:
     best_rank = None
 
     for index, result in enumerate(results, start=1):
@@ -143,7 +137,9 @@ def build_search_command(query: str, *, collection: str, top_k: int, reranker_mo
     return command
 
 
-def run_live_query(query: str, *, collection: str, top_k: int, reranker_model: str | None = None) -> list[dict[str, Any]]:
+def run_live_query(
+    query: str, *, collection: str, top_k: int, reranker_model: str | None = None
+) -> list[dict[str, Any]]:
     completed = subprocess.run(
         build_search_command(query, collection=collection, top_k=top_k, reranker_model=reranker_model),
         check=True,
@@ -256,7 +252,9 @@ def build_report(
     recommendation_basis: list[str] = []
 
     for query in queries:
-        reports = [dict(report) for reports in mode_results.values() for report in reports if report["query_id"] == query.id]
+        reports = [
+            dict(report) for reports in mode_results.values() for report in reports if report["query_id"] == query.id
+        ]
         winner = reports[0]
         for report in reports[1:]:
             winner = dict(better_report(winner, report))
@@ -384,7 +382,9 @@ def _recommendation(
     overall_scores: Mapping[str, Mapping[str, Any]], regressions: Sequence[Mapping[str, Any]], basis: Sequence[str]
 ) -> str:
     if "onnx-rerank" not in overall_scores:
-        return "Fixture/plain benchmark only. Use this report to validate scoring/reporting, not live retrieval quality."
+        return (
+            "Fixture/plain benchmark only. Use this report to validate scoring/reporting, not live retrieval quality."
+        )
     if regressions:
         return "Do not promote ONNX reranking yet. Review regressions before enabling it broadly."
 
@@ -521,12 +521,7 @@ def render_markdown_report(report: Mapping[str, Any]) -> str:
 
     lines.extend(["", "## Regressions", ""])
     if report["regressions"]:
-        lines.extend(
-            (
-                _format_regression(item)
-            )
-            for item in report["regressions"]
-        )
+        lines.extend((_format_regression(item)) for item in report["regressions"])
     else:
         lines.append("- None.")
 
