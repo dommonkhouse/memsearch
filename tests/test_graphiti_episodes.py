@@ -55,3 +55,13 @@ def test_empty_sections_are_skipped(tmp_path):
 
     assert len(episodes) == 1
     assert episodes[0].metadata["heading"] == "Useful"
+
+
+def test_invalid_utf8_bytes_do_not_block_episode_build(tmp_path):
+    memory = tmp_path / "2026-06-12.md"
+    memory.write_bytes(b"### Bad bytes\n\nUseful memory before bad byte \xff still indexed.\n")
+
+    episodes = list(build_episodes([memory]))
+
+    assert len(episodes) == 1
+    assert "Useful memory before bad byte" in episodes[0].body

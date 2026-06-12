@@ -25,7 +25,7 @@ def build_episodes(paths: Iterable[Path | str]) -> Iterator[GraphitiEpisode]:
     """Yield one Graphiti episode per meaningful Markdown section."""
     for raw_path in paths:
         path = Path(raw_path)
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8", errors="replace")
         for chunk in chunk_markdown(text, source=str(path)):
             yield GraphitiEpisode(
                 name=_episode_name(path, chunk.heading, chunk.start_line),
