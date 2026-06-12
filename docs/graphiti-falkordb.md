@@ -45,6 +45,7 @@ Do not use `/mcp/` with a trailing slash. The server redirects `/mcp/` to `/mcp`
 - Dedicated Colima home: `/Volumes/SSD/graphiti-mon316/colima-home`.
 - Logs: `/Volumes/SSD/graphiti-mon316/logs`.
 - Secrets: `~/.secrets/graphiti.env`.
+- Local MCP client venv: `~/venvs/graphiti-mcp-client`.
 - Graphiti LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316.plist`.
 - Awake LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-awake.plist`.
 - Tailnet forward LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-tailnet-proxy.plist`.
@@ -79,6 +80,25 @@ Start or reconcile Graphiti on the Mini:
 
 ```bash
 ~/Projects/memsearch-mon316-graphiti-mini/bin/start-graphiti-mon316.sh
+```
+
+Verify the MCP client from the Mini:
+
+```bash
+~/venvs/graphiti-mcp-client/bin/python - <<'PY'
+import asyncio
+from mcp.client.session import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+async def main():
+    async with streamablehttp_client("http://127.0.0.1:18018/mcp") as (read_stream, write_stream, _):
+        async with ClientSession(read_stream, write_stream) as session:
+            await session.initialize()
+            tools = await session.list_tools()
+            print(",".join(sorted(tool.name for tool in tools.tools)))
+
+asyncio.run(main())
+PY
 ```
 
 Stop only Graphiti containers, leaving volumes and Milvus untouched:

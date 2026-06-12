@@ -113,6 +113,15 @@ search_memory_facts
 search_nodes
 ```
 
+Mini-local MCP client:
+
+```text
+venv: ~/venvs/graphiti-mcp-client
+package: mcp>=1.27.2,<2
+endpoint verified from Mini: http://127.0.0.1:18018/mcp
+result: MCP_CLIENT_OK
+```
+
 Status:
 
 ```json
