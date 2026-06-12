@@ -25,6 +25,7 @@ dependencies = [
     "tomli_w>=1.0",
     "tomli>=2.0; python_version < '3.11'",
     "openai>=1.0",
+    "mcp>=1.27.2,<2",
 ]
 
 [project.optional-dependencies]

@@ -19,6 +19,9 @@ Commands:
   compact     Compress stored memories into a summary.
   config      Manage memsearch configuration.
   expand      Expand a memory chunk to show full context.
+  graph-index Index markdown files into Graphiti as episodes.
+  graph-search Search Graphiti facts and nodes.
+  graph-status Check Graphiti MCP status.
   index       Index markdown files from PATHS.
   reset       Drop all indexed data.
   search      Search indexed memory for QUERY.
@@ -36,12 +39,41 @@ Commands:
 | `memsearch search` | Semantic search across indexed chunks using natural language |
 | `memsearch watch` | Monitor directories and auto-index on file changes |
 | `memsearch compact` | Compress indexed chunks into an LLM-generated summary |
+| `memsearch graph-status` | Check the configured Graphiti MCP endpoint |
+| `memsearch graph-index` | Queue markdown sections into Graphiti as episodes |
+| `memsearch graph-search` | Search Graphiti facts and nodes |
 | `memsearch expand` | Progressive disclosure L2: show full section around a chunk 🔌 |
 | `memsearch transcript` | Progressive disclosure L3: view turns from a JSONL transcript 🔌 |
 | `memsearch stats` | Display index statistics (total chunk count) |
 | `memsearch reset` | Drop all indexed data from the Milvus collection |
 
 > 🔌 Commands marked with 🔌 are designed for the [platform plugins](platforms/index.md)' progressive disclosure workflow, but work as standalone CLI tools too.
+
+---
+
+## Graphiti commands
+
+Graphiti is an optional graph sidecar. Markdown remains the source of truth; Graphiti stores derived episodes and relationships.
+
+Mini deployment example:
+
+```bash
+memsearch graph-status \
+  --endpoint http://dom-kamet.tailf78a36.ts.net:8018/mcp \
+  --host-header 127.0.0.1:18018
+
+memsearch graph-index .memsearch/memory \
+  --group-id ms_memsearch_ae2d4f9b \
+  --endpoint http://dom-kamet.tailf78a36.ts.net:8018/mcp \
+  --host-header 127.0.0.1:18018
+
+memsearch graph-search "what changed about Kuzu" \
+  --group-id ms_memsearch_ae2d4f9b \
+  --endpoint http://dom-kamet.tailf78a36.ts.net:8018/mcp \
+  --host-header 127.0.0.1:18018
+```
+
+The Mini route needs `--host-header 127.0.0.1:18018` because the Graphiti MCP server protects localhost transports against DNS rebinding.
 
 ---
 

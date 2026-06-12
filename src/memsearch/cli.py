@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import click
@@ -95,6 +96,44 @@ def _cfg_to_memsearch_kwargs(cfg: MemSearchConfig) -> dict:
         "overlap_lines": cfg.chunking.overlap_lines,
         "reranker_model": cfg.reranker.model,
     }
+
+
+def _graphiti_client_from_config(
+    cfg: MemSearchConfig,
+    *,
+    endpoint: str | None = None,
+    host_header: str | None = None,
+    timeout_seconds: int | None = None,
+):
+    from .graphiti.client import GraphitiClient
+
+    return GraphitiClient(
+        endpoint or cfg.graphiti.endpoint,
+        host_header=host_header if host_header is not None else cfg.graphiti.host_header,
+        timeout_seconds=timeout_seconds or cfg.graphiti.request_timeout_seconds,
+    )
+
+
+def _load_graphiti_manifest(path: str) -> dict:
+    manifest_path = Path(path).expanduser()
+    if not manifest_path.is_file():
+        return {"episodes": {}}
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {"episodes": {}}
+    if not isinstance(data, dict):
+        return {"episodes": {}}
+    episodes = data.get("episodes")
+    if not isinstance(episodes, dict):
+        data["episodes"] = {}
+    return data
+
+
+def _save_graphiti_manifest(path: str, data: dict) -> None:
+    manifest_path = Path(path).expanduser()
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _normalize_compact_source(source: str | None) -> str | None:
@@ -293,6 +332,159 @@ def search(
     finally:
         if ms is not None:
             ms.close()
+
+
+@cli.command("graph-status")
+@click.option("--endpoint", default=None, help="Graphiti MCP endpoint.")
+@click.option("--host-header", default=None, help="Override Host header for localhost-protected Graphiti MCP routes.")
+@click.option("--timeout", "timeout_seconds", default=None, type=int, help="Request timeout in seconds.")
+@click.option("--json-output", "-j", is_flag=True, help="Output as JSON.")
+def graph_status(
+    endpoint: str | None,
+    host_header: str | None,
+    timeout_seconds: int | None,
+    json_output: bool,
+) -> None:
+    """Check Graphiti MCP status."""
+    from .graphiti.client import GraphitiClientError
+
+    cfg = _safe_resolve_config()
+    try:
+        status = _graphiti_client_from_config(
+            cfg,
+            endpoint=endpoint,
+            host_header=host_header,
+            timeout_seconds=timeout_seconds,
+        ).get_status()
+    except GraphitiClientError as e:
+        click.echo(f"Graphiti error: {e}", err=True)
+        raise SystemExit(1) from None
+
+    if json_output:
+        click.echo(json.dumps(status, indent=2, ensure_ascii=False))
+    else:
+        click.echo(status.get("message") or status.get("status") or json.dumps(status, ensure_ascii=False))
+
+
+@cli.command("graph-search")
+@click.argument("query")
+@click.option("--top-k", "-k", default=5, type=int, help="Number of facts and nodes to return.")
+@click.option("--group-id", default=None, help="Graphiti group ID.")
+@click.option("--endpoint", default=None, help="Graphiti MCP endpoint.")
+@click.option("--host-header", default=None, help="Override Host header for localhost-protected Graphiti MCP routes.")
+@click.option("--timeout", "timeout_seconds", default=None, type=int, help="Request timeout in seconds.")
+@click.option("--json-output", "-j", is_flag=True, help="Output as JSON.")
+def graph_search(
+    query: str,
+    top_k: int,
+    group_id: str | None,
+    endpoint: str | None,
+    host_header: str | None,
+    timeout_seconds: int | None,
+    json_output: bool,
+) -> None:
+    """Search Graphiti facts and nodes."""
+    from .graphiti.client import GraphitiClientError
+
+    cfg = _safe_resolve_config()
+    client = _graphiti_client_from_config(
+        cfg,
+        endpoint=endpoint,
+        host_header=host_header,
+        timeout_seconds=timeout_seconds,
+    )
+    effective_group_id = group_id if group_id is not None else cfg.graphiti.group_id
+    try:
+        facts = client.search_memory_facts(query, group_id=effective_group_id, limit=top_k)
+        nodes = client.search_nodes(query, group_id=effective_group_id, limit=top_k)
+    except GraphitiClientError as e:
+        click.echo(f"Graphiti error: {e}", err=True)
+        raise SystemExit(1) from None
+
+    result = {"facts": facts.get("facts", []), "nodes": nodes.get("nodes", [])}
+    if json_output:
+        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        return
+
+    if not result["facts"] and not result["nodes"]:
+        click.echo("No graph results found.")
+        return
+
+    if result["facts"]:
+        click.echo("Facts:")
+        for fact in result["facts"]:
+            click.echo(f"- {fact.get('fact') or fact.get('name') or fact.get('uuid')}")
+    if result["nodes"]:
+        click.echo("Nodes:")
+        for node in result["nodes"]:
+            summary = node.get("summary", "")
+            suffix = f" — {summary}" if summary else ""
+            click.echo(f"- {node.get('name') or node.get('uuid')}{suffix}")
+
+
+@cli.command("graph-index")
+@click.argument("paths", nargs=-1, required=True, type=click.Path(exists=True))
+@click.option("--limit", default=None, type=int, help="Maximum number of new episodes to queue.")
+@click.option("--group-id", default=None, help="Graphiti group ID.")
+@click.option("--endpoint", default=None, help="Graphiti MCP endpoint.")
+@click.option("--host-header", default=None, help="Override Host header for localhost-protected Graphiti MCP routes.")
+@click.option("--timeout", "timeout_seconds", default=None, type=int, help="Request timeout in seconds.")
+@click.option("--force", is_flag=True, help="Queue episodes even if their content hash is already in the manifest.")
+@click.option("--dry-run", is_flag=True, help="Build episodes and show counts without calling Graphiti.")
+def graph_index(
+    paths: tuple[str, ...],
+    limit: int | None,
+    group_id: str | None,
+    endpoint: str | None,
+    host_header: str | None,
+    timeout_seconds: int | None,
+    force: bool,
+    dry_run: bool,
+) -> None:
+    """Index markdown files into Graphiti as episodes."""
+    from .graphiti.client import GraphitiClientError
+    from .graphiti.episodes import build_episodes
+    from .scanner import scan_paths
+
+    cfg = _safe_resolve_config()
+    files = scan_paths(list(paths))
+    manifest = _load_graphiti_manifest(cfg.graphiti.manifest_path)
+    seen = manifest["episodes"]
+    episodes = list(build_episodes(file.path for file in files))
+    pending = [episode for episode in episodes if force or episode.content_hash not in seen]
+    if limit is not None:
+        pending = pending[:limit]
+
+    if dry_run:
+        click.echo(f"Found {len(files)} markdown files, {len(episodes)} episodes, {len(pending)} pending.")
+        return
+
+    client = _graphiti_client_from_config(
+        cfg,
+        endpoint=endpoint,
+        host_header=host_header,
+        timeout_seconds=timeout_seconds,
+    )
+    effective_group_id = group_id if group_id is not None else cfg.graphiti.group_id
+    queued = 0
+    try:
+        for episode in pending:
+            client.add_memory(episode, group_id=effective_group_id)
+            seen[episode.content_hash] = {
+                "name": episode.name,
+                "source": episode.metadata.get("source", ""),
+                "group_id": effective_group_id,
+                "queued_at": datetime.now(UTC).isoformat(),
+            }
+            queued += 1
+    except GraphitiClientError as e:
+        _save_graphiti_manifest(cfg.graphiti.manifest_path, manifest)
+        click.echo(f"Graphiti error after queuing {queued} episode(s): {e}", err=True)
+        raise SystemExit(1) from None
+
+    _save_graphiti_manifest(cfg.graphiti.manifest_path, manifest)
+    skipped = len(episodes) - len(pending) if not force else 0
+    click.echo(f"Queued {queued} Graphiti episode(s). Skipped {skipped} unchanged episode(s).")
 
 
 # ======================================================================
