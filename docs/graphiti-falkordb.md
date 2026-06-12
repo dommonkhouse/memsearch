@@ -13,12 +13,12 @@ Graphiti/FalkorDB is running on the Mac Mini `dom-kamet.tailf78a36.ts.net` as of
 - Tailnet endpoint: `http://dom-kamet.tailf78a36.ts.net:8018/health`.
 - FalkorDB is internal to the Graphiti Compose network and does not publish `6379`.
 - Existing Milvus continues to run on the default Colima profile.
-- Tailscale Funnel is off. Tailscale Serve is not enabled on the Tailnet.
+- Tailscale Funnel is off. Tailscale Serve provides private Tailnet TCP forwarding.
 
-The Tailnet MCP route uses a supervised SSH local forward on the Mini:
+The Tailnet MCP route uses Tailscale Serve raw TCP forwarding on the Mini:
 
 ```text
-100.72.169.59:8018 -> 127.0.0.1:18018
+dom-kamet.tailf78a36.ts.net:8018 -> 127.0.0.1:18018
 ```
 
 The Graphiti MCP server has DNS-rebinding protection enabled for localhost hosts. MCP clients connecting through the Tailnet route must use:
@@ -48,7 +48,8 @@ Do not use `/mcp/` with a trailing slash. The server redirects `/mcp/` to `/mcp`
 - Local MCP client venv: `~/venvs/graphiti-mcp-client`.
 - Graphiti LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316.plist`.
 - Awake LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-awake.plist`.
-- Tailnet forward LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-tailnet-proxy.plist`.
+- Tailscale Serve config: `tailscale serve --tcp 8018 tcp://127.0.0.1:18018`.
+- Retired Tailnet forward LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-tailnet-proxy.plist`, disabled with `launchctl disable`.
 
 ## MemSearch config
 

@@ -46,6 +46,31 @@ def test_read_recent_journals_replaces_invalid_utf8_bytes(tmp_path: Path) -> Non
     assert "broken \ufffd byte" in journals
 
 
+def test_explicit_project_dir_ignores_global_memsearch_dir(tmp_path: Path, monkeypatch) -> None:
+    shared = tmp_path / "shared"
+    shared.mkdir()
+    monkeypatch.setenv("MEMSEARCH_DIR", str(shared))
+
+    project = tmp_path / "repo"
+    memory = project / ".memsearch" / "memory"
+    memory.mkdir(parents=True)
+    (memory / "2026-06-12.md").write_text("- Project-local note.\n", encoding="utf-8")
+
+    cfg = MemSearchConfig()
+    cfg.plugins.codex.project_review.enabled = True
+
+    def fake_runner(ctx, prompt: str) -> str:
+        assert ctx.memsearch_dir == project / ".memsearch"
+        assert "Project-local note" in prompt
+        return json.dumps({"action": "none", "reason": "ok"})
+
+    results = run_due_tasks(platform="codex", project_dir=project, cfg=cfg, llm_runner=fake_runner)
+
+    assert results[0].action == "none"
+    assert (project / ".memsearch" / ".maintenance-state.json").is_file()
+    assert not (shared / ".maintenance-state.json").exists()
+
+
 def test_openai_maintenance_uses_default_temperature(tmp_path: Path, monkeypatch) -> None:
     from memsearch import maintenance as maintenance_module
 

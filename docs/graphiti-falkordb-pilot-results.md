@@ -2,12 +2,12 @@
 
 ## 2026-06-12 Mac Mini SSD deployment
 
-Status: passed with one documented deviation.
+Status: passed.
 
-The original plan expected Tailscale Serve. Tailscale Serve is disabled on the Tailnet and the Mini returned the Tailscale admin enablement prompt, so the deployed private route uses a supervised SSH local forward instead:
+The private Tailnet route uses Tailscale Serve raw TCP forwarding:
 
 ```text
-100.72.169.59:8018 -> 127.0.0.1:18018
+dom-kamet.tailf78a36.ts.net:8018 -> 127.0.0.1:18018
 ```
 
 Tailscale Funnel remains off.
@@ -51,8 +51,20 @@ LaunchAgents:
 
 ```text
 com.monkhouse.graphiti-mon316                 state = not running, last exit code = 0
-com.monkhouse.graphiti-mon316-tailnet-proxy   state = running
+com.monkhouse.graphiti-mon316-tailnet-proxy   disabled, retired after Tailscale Serve TCP route was verified
 com.monkhouse.graphiti-mon316-awake           state = running
+```
+
+Tailscale Serve:
+
+```json
+{
+  "TCP": {
+    "8018": {
+      "TCPForward": "127.0.0.1:18018"
+    }
+  }
+}
 ```
 
 Awake assertions:

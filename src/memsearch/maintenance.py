@@ -69,7 +69,12 @@ def run_due_tasks(
         cfg = resolve_config()
 
     project_root = Path(project_dir or os.getcwd()).expanduser().resolve()
-    mem_root = Path(memsearch_dir or os.environ.get("MEMSEARCH_DIR", project_root / ".memsearch")).expanduser()
+    if memsearch_dir is not None:
+        mem_root = Path(memsearch_dir).expanduser()
+    elif project_dir is not None:
+        mem_root = project_root / ".memsearch"
+    else:
+        mem_root = Path(os.environ.get("MEMSEARCH_DIR", project_root / ".memsearch")).expanduser()
     if not mem_root.is_absolute():
         mem_root = project_root / mem_root
     mem_root = mem_root.resolve()

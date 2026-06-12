@@ -4,7 +4,7 @@
 
 **Goal:** Deploy Graphiti + FalkorDB as an always-on MemSearch graph sidecar on the Mac Mini, using the external SSD for Graphiti runtime state and leaving the existing Milvus service untouched.
 
-**Architecture:** Keep Markdown as canonical memory and Milvus as the primary semantic recall layer. Run Graphiti/FalkorDB as a separate Mac Mini sidecar with a dedicated Colima profile whose `COLIMA_HOME` lives on `/Volumes/SSD`, and expose Graphiti through a local-only container binding plus a supervised Tailnet SSH forward. Use user LaunchAgents for login-session supervision, and treat reboot-without-login survivability as blocked until the Mini has an approved admin-level power/login fix.
+**Architecture:** Keep Markdown as canonical memory and Milvus as the primary semantic recall layer. Run Graphiti/FalkorDB as a separate Mac Mini sidecar with a dedicated Colima profile whose `COLIMA_HOME` lives on `/Volumes/SSD`, and expose Graphiti through a local-only container binding plus Tailscale Serve raw TCP forwarding. Use user LaunchAgents for login-session supervision, and treat reboot-without-login survivability as blocked until the Mini has an approved admin-level power/login fix.
 
 **Tech Stack:** macOS Mac Mini `dom-kamet.tailf78a36.ts.net`, Tailscale, Colima, Docker CLI/Compose, Graphiti MCP server, FalkorDB, LaunchAgent, `caffeinate`, shell scripts, MemSearch docs.
 
@@ -53,8 +53,8 @@ Status on 2026-06-12: completed.
 - Graphiti/FalkorDB is running on the Mini with runtime state under `/Volumes/SSD/graphiti-mon316`.
 - The dedicated Colima profile is `graphiti-mon316`; the default `colima` context remains selected for Milvus.
 - Graphiti MCP is bound inside Docker as `127.0.0.1:18018->8000`.
-- Tailnet access is provided by `com.monkhouse.graphiti-mon316-tailnet-proxy`, an SSH forward from `100.72.169.59:8018` to `127.0.0.1:18018`.
-- Tailscale Serve could not be used because Serve is not enabled on the Tailnet. Funnel remains off.
+- Tailnet access is provided by Tailscale Serve raw TCP forwarding from `dom-kamet.tailf78a36.ts.net:8018` to `127.0.0.1:18018`.
+- The retired `com.monkhouse.graphiti-mon316-tailnet-proxy` SSH-forward LaunchAgent is disabled. Funnel remains off.
 - MCP clients should use `http://dom-kamet.tailf78a36.ts.net:8018/mcp` with `Host: 127.0.0.1:18018` to satisfy the Graphiti MCP server's localhost DNS-rebinding guard.
 - Probe group `ms_memsearch_probe_1781275707` was added, searched, and cleared. Cleanup verification returned no episodes.
 - Existing Milvus containers remained healthy after deployment.
@@ -82,8 +82,8 @@ Status on 2026-06-12: completed.
   - User LaunchAgent for Graphiti runtime supervision.
 - Create on Mini, not committed: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-awake.plist`
   - User LaunchAgent running `/usr/bin/caffeinate -ims` to prevent idle/system/disk sleep while the user session exists.
-- Create on Mini, not committed: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-tailnet-proxy.plist`
-  - User LaunchAgent running the Tailnet SSH forward from `100.72.169.59:8018` to `127.0.0.1:18018`.
+- Retired on Mini, not committed: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316-tailnet-proxy.plist`
+  - Former SSH-forward LaunchAgent. Disabled after Tailscale Serve raw TCP forwarding was verified.
 - Modify: `docs/graphiti-falkordb.md`
   - Replace MacBook-local runtime guidance with Mac Mini SSD deployment guidance.
 - Modify: `docs/graphiti-falkordb-pilot-results.md`
@@ -385,12 +385,12 @@ ssh dom-kamet.tailf78a36.ts.net 'curl -fsS http://127.0.0.1:18018/health'
 
 Expected: Graphiti health succeeds through the deployed `127.0.0.1:18018` container binding.
 
-- [ ] **Step 3: Configure Tailnet SSH forward**
+- [x] **Step 3: Configure Tailscale Serve TCP forwarding**
 
-Tailscale Serve is not enabled on the Tailnet, so the verified route is a supervised SSH local forward.
+The verified route is Tailscale Serve raw TCP forwarding.
 
 ```bash
-ssh dom-kamet.tailf78a36.ts.net 'launchctl print gui/$(id -u)/com.monkhouse.graphiti-mon316-tailnet-proxy | grep -E "state =|pid =|last exit code"'
+ssh dom-kamet.tailf78a36.ts.net 'tailscale serve status --json'
 ```
 
 Expected URLs:
@@ -405,7 +405,7 @@ Run from the MacBook:
 curl -fsS http://dom-kamet.tailf78a36.ts.net:8018/health
 ```
 
-Expected: Graphiti health succeeds through the Tailnet SSH forward. MCP tool discovery in Task 7 must use `http://dom-kamet.tailf78a36.ts.net:8018/mcp` with `Host: 127.0.0.1:18018`.
+Expected: Graphiti health succeeds through Tailscale Serve raw TCP forwarding. MCP tool discovery in Task 7 must use `http://dom-kamet.tailf78a36.ts.net:8018/mcp` with `Host: 127.0.0.1:18018`.
 
 - [ ] **Step 5: Verify Funnel is off**
 
@@ -528,7 +528,7 @@ ssh dom-kamet.tailf78a36.ts.net '~/Projects/memsearch-mon316-graphiti-mini/bin/s
 - **HFS/noowners on `/Volumes/SSD`:** Start with a Colima smoke test. If it fails, use an APFS sparsebundle/disk image stored on `/Volumes/SSD` rather than falling back to the internal disk.
 - **Reboot-without-login gap:** User LaunchAgents require a user session. Without auto-login or an admin-level daemon/power configuration, call the service login-session always-on only.
 - **Resource contention with Milvus:** Use a separate Colima home/profile and start at `2 CPU / 4 GiB / 20 GiB`. Increase only with evidence.
-- **Tailscale exposure mistake:** Bind Docker to localhost and use the supervised Tailnet SSH forward. Keep Funnel off.
+- **Tailscale exposure mistake:** Bind Docker to localhost and use Tailscale Serve raw TCP forwarding on the Tailnet. Keep Funnel off.
 - **Graph wipe risk:** Use a temporary probe group and never run broad `clear_graph` against the real group.
 - **Secrets leakage:** Never print `OPENAI_API_KEY`. Derive `~/.secrets/graphiti.env` from `~/.secrets/mcp.env` with `awk` checks only.
 
@@ -537,7 +537,7 @@ ssh dom-kamet.tailf78a36.ts.net '~/Projects/memsearch-mon316-graphiti-mini/bin/s
 - Attempt 1 accepted Claude's Docker context objection: start/stop scripts must set the SSD-backed `COLIMA_HOME`, discover the dedicated profile Docker socket, export `DOCKER_HOST`, and fail if Docker points at the default Milvus Colima socket.
 - Attempt 1 accepted Claude's upstream Compose objection: the plan now pins Graphiti's separate `docker-compose-falkordb.yml` route, uses `FALKORDB_URI=redis://falkordb:6379`, and replaces the invented Graphiti state volume with explicit `falkordb_data` and `mcp_logs` volume names.
 - Attempt 1 accepted Claude's FalkorDB UI objection: the Mini override must set `BROWSER=0` and remove or localhost-bind port `3000`.
-- Attempt 1 originally accepted Claude's Tailscale ambiguity objection with HTTPS Serve. During execution, Tailscale Serve proved disabled on the Tailnet, so the final verified route is the supervised SSH forward at `http://dom-kamet.tailf78a36.ts.net:8018/mcp` with `Host: 127.0.0.1:18018`.
+- Attempt 1 originally accepted Claude's Tailscale ambiguity objection with HTTPS Serve. During execution, the final verified route became Tailscale Serve raw TCP forwarding at `http://dom-kamet.tailf78a36.ts.net:8018/mcp` with `Host: 127.0.0.1:18018`.
 - Attempt 1 accepted Claude's LaunchAgent objection: the Graphiti LaunchAgent now uses `RunAtLoad` plus `StartInterval=60` for idempotent reconciliation, not a `KeepAlive` dictionary around a background `docker compose up -d` process.
 - Attempt 1 accepted Claude's env file objection: the Compose file must use absolute host env file path `/Users/dominicmonkhouse/.secrets/graphiti.env` and pass `OPENAI_API_KEY` into `graphiti-mcp`.
 - Attempt 1 accepted Claude's Mini transfer objection: the plan now checks whether `HEAD` is remote-available and otherwise uses `git archive HEAD | ssh ... tar xf -` without pushing.
