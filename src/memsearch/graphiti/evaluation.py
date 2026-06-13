@@ -259,6 +259,36 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         graph_must_contain=("search", "saving new memory", "index", "paths", "collection", "milvus_uri"),
     ),
     GraphEvaluationCase(
+        name="relationship-platform-install-routes",
+        kind="relationship",
+        query="How do MemSearch platform installs differ across Claude Code OpenClaw OpenCode and Codex CLI?",
+        graph_must_contain=("Claude Code", "Marketplace", "OpenClaw", "ClawHub", "OpenCode", "npm", "Codex"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-openclaw-permissions",
+        kind="relationship",
+        query="What permissions does the OpenClaw MemSearch plugin require and why?",
+        graph_must_contain=("allowConversationAccess", "allowPromptInjection", "read conversation turns", "inject recall context"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-codex-installer-changes",
+        kind="relationship",
+        query="What does the Codex MemSearch installer change in hooks config and skills?",
+        graph_must_contain=("skills and hooks", "~/.agents/skills", "~/.codex/hooks.json", "hooks to be true"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-plugin-uninstall-preserves-memory",
+        kind="relationship",
+        query="How do MemSearch plugin uninstall steps preserve memory files across Claude Code OpenClaw OpenCode and Codex?",
+        graph_must_contain=(".memsearch/memory", "not delete", "Claude Code", "OpenClaw", "OpenCode", "Codex"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-opencode-windows-posix",
+        kind="relationship",
+        query="How do OpenCode native Windows POSIX shell WSL2 and Git Bash relate to MemSearch plugin install?",
+        graph_must_contain=("OpenCode", "native Windows", "POSIX shell", "WSL2", "Git Bash", "issue #387"),
+    ),
+    GraphEvaluationCase(
         name="negative-mon-249-performance",
         kind="negative",
         query="MON-249 homepage performance recovery",

@@ -41,6 +41,11 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-embedding-model-tradeoffs",
         "relationship-python-api-index-lifecycle",
         "relationship-python-api-isolation-agent-loop",
+        "relationship-platform-install-routes",
+        "relationship-openclaw-permissions",
+        "relationship-codex-installer-changes",
+        "relationship-plugin-uninstall-preserves-memory",
+        "relationship-opencode-windows-posix",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -244,6 +249,43 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "paths",
         "collection",
         "milvus_uri",
+    )
+    assert cases["relationship-platform-install-routes"].graph_must_contain == (
+        "Claude Code",
+        "Marketplace",
+        "OpenClaw",
+        "ClawHub",
+        "OpenCode",
+        "npm",
+        "Codex",
+    )
+    assert cases["relationship-openclaw-permissions"].graph_must_contain == (
+        "allowConversationAccess",
+        "allowPromptInjection",
+        "read conversation turns",
+        "inject recall context",
+    )
+    assert cases["relationship-codex-installer-changes"].graph_must_contain == (
+        "skills and hooks",
+        "~/.agents/skills",
+        "~/.codex/hooks.json",
+        "hooks to be true",
+    )
+    assert cases["relationship-plugin-uninstall-preserves-memory"].graph_must_contain == (
+        ".memsearch/memory",
+        "not delete",
+        "Claude Code",
+        "OpenClaw",
+        "OpenCode",
+        "Codex",
+    )
+    assert cases["relationship-opencode-windows-posix"].graph_must_contain == (
+        "OpenCode",
+        "native Windows",
+        "POSIX shell",
+        "WSL2",
+        "Git Bash",
+        "issue #387",
     )
 
 
