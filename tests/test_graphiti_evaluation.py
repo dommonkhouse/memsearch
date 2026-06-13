@@ -46,6 +46,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-codex-installer-changes",
         "relationship-plugin-uninstall-preserves-memory",
         "relationship-opencode-windows-posix",
+        "relationship-platform-memory-execution-contexts",
+        "relationship-platform-memory-manual-triggers",
+        "relationship-platform-memory-transcript-sources",
+        "relationship-opencode-openclaw-transcript-difference",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -286,6 +290,43 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "WSL2",
         "Git Bash",
         "issue #387",
+    )
+    assert cases["relationship-platform-memory-execution-contexts"].graph_must_contain == (
+        "Claude Code",
+        "forked subagent",
+        "Codex",
+        "main context",
+        "OpenClaw",
+        "registerTool",
+        "OpenCode",
+        "tool() API",
+    )
+    assert cases["relationship-platform-memory-manual-triggers"].graph_must_contain == (
+        "Claude Code",
+        "/memory-recall",
+        "Codex",
+        "$memory-recall",
+        "OpenClaw",
+        "OpenCode",
+    )
+    assert cases["relationship-platform-memory-transcript-sources"].graph_must_contain == (
+        "Claude Code",
+        "JSONL",
+        "Codex",
+        "parse-rollout.sh",
+        "OpenClaw",
+        "parse-transcript.sh",
+        "OpenCode",
+        "SQLite",
+    )
+    assert cases["relationship-opencode-openclaw-transcript-difference"].graph_must_contain == (
+        "OpenCode",
+        "SQLite",
+        "session_id",
+        "turn_id",
+        "OpenClaw",
+        "transcript_path",
+        "JSONL",
     )
 
 

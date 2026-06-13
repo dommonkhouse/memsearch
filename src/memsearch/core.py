@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import Callable
 from datetime import date
 from pathlib import Path
@@ -20,6 +21,8 @@ from .scanner import ScannedFile, scan_paths
 from .store import MilvusStore
 
 logger = logging.getLogger(__name__)
+
+_EXACT_IDENTIFIER_RE = re.compile(r"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9][A-Za-z0-9._/-]{2,}$|^[a-fA-F0-9]{7,40}$")
 
 
 class MemSearch:
@@ -230,14 +233,19 @@ class MemSearch:
             escaped = prefix.replace("\\", "\\\\").replace('"', '\\"')
             filter_expr = f'source like "{escaped}%"'
 
+        exact_identifier = _looks_like_exact_identifier(query)
         embeddings = await self._embedder.embed([query])
         fetch_k = top_k * 3 if self._reranker_model else top_k
+        if exact_identifier:
+            fetch_k = max(fetch_k, top_k * 5, 1500)
         results = self._store.search(embeddings[0], query_text=query, top_k=fetch_k, filter_expr=filter_expr)
         if self._reranker_model and results:
             from .reranker import rerank
 
-            results = rerank(query, results, model_name=self._reranker_model, top_k=top_k)
-        return results
+            results = rerank(query, results, model_name=self._reranker_model, top_k=fetch_k if exact_identifier else top_k)
+        if exact_identifier:
+            results = _prioritize_exact_identifier_matches(query, results)
+        return results[:top_k]
 
     # ------------------------------------------------------------------
     # Compact (compress memories)
@@ -413,3 +421,28 @@ class MemSearch:
 
     def __exit__(self, *exc: object) -> None:
         self.close()
+
+
+def _looks_like_exact_identifier(query: str) -> bool:
+    stripped = query.strip()
+    if not stripped or any(ch.isspace() for ch in stripped):
+        return False
+    if "/" in stripped or "\\" in stripped:
+        return True
+    if "." in stripped and any(ch.isalpha() for ch in stripped):
+        return True
+    return bool(_EXACT_IDENTIFIER_RE.match(stripped))
+
+
+def _prioritize_exact_identifier_matches(query: str, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    needle = query.casefold().strip()
+
+    def sort_key(result: dict[str, Any]) -> tuple[int, float]:
+        haystack = " ".join(
+            str(result.get(field, ""))
+            for field in ("heading", "content", "source", "chunk_hash")
+        ).casefold()
+        exact_rank = 0 if needle in haystack else 1
+        return (exact_rank, -float(result.get("score") or 0.0))
+
+    return sorted(results, key=sort_key)
