@@ -106,6 +106,31 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         graph_must_not_contain=("Dominic works_on salon owners", "Dominic client_of salon owners"),
     ),
     GraphEvaluationCase(
+        name="relationship-source-freshness-cadence",
+        kind="relationship",
+        query="What is the source freshness cadence for Linear and Manus?",
+        graph_must_contain=("Linear", "daily", "Manus", "weekly"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-manus-card-safety-lane",
+        kind="relationship",
+        query="Why are Manus cards the practical MemSearch indexing source instead of raw exports?",
+        graph_must_contain=("Manus", "card lane", "raw exports", "not MemSearch-ready"),
+        graph_must_not_contain=("index raw Manus exports",),
+    ),
+    GraphEvaluationCase(
+        name="relationship-linear-source-sync",
+        kind="relationship",
+        query="How does Linear source sync work for MemSearch freshness?",
+        graph_must_contain=("Linear", "read-only GraphQL", "last_success_at", "dry-run previews"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-secret-scan-gates",
+        kind="relationship",
+        query="What secret scan gates protect Manus source sync before indexing?",
+        graph_must_contain=("scan raw output", "scan promoted output", "scan cards", "index"),
+    ),
+    GraphEvaluationCase(
         name="negative-mon-249-performance",
         kind="negative",
         query="MON-249 homepage performance recovery",
@@ -155,6 +180,13 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         query="Does Codex memory-recall run inside a forked subagent?",
         graph_must_contain=("Codex", "main conversation context"),
         graph_must_not_contain=("Codex uses a forked subagent", "Codex memory-recall uses a forked subagent"),
+    ),
+    GraphEvaluationCase(
+        name="negative-index-raw-manus-exports",
+        kind="negative",
+        query="Should MemSearch index raw Manus exports directly?",
+        graph_must_contain=("Manus raw exports", "not MemSearch-ready"),
+        graph_must_not_contain=("index raw Manus exports", "raw Manus exports should be indexed"),
     ),
 )
 
