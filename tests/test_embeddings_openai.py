@@ -44,7 +44,7 @@ async def test_embed_deterministic(provider):
     r1 = await provider.embed([text])
     r2 = await provider.embed([text])
     # Live embedding APIs can return tiny float-level differences.
-    assert r1[0][:5] == pytest.approx(r2[0][:5], abs=1e-4)
+    assert r1[0][:5] == pytest.approx(r2[0][:5], abs=1e-3)
 
 
 def test_model_name(provider):

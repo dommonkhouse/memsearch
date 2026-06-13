@@ -235,6 +235,7 @@ def cli() -> None:
 @click.argument("paths", nargs=-1, required=True, type=click.Path(exists=True))
 @_common_options
 @click.option("--force", is_flag=True, help="Re-index all files.")
+@click.option("--no-prune", is_flag=True, help="Do not remove indexed sources outside PATHS.")
 @click.option(
     "--max-chunk-size", default=None, type=click.IntRange(min=1), help="Max chunk size in characters (must be >= 1)."
 )
@@ -250,6 +251,7 @@ def index(
     milvus_uri: str | None,
     milvus_token: str | None,
     force: bool,
+    no_prune: bool,
     max_chunk_size: int | None,
     description: str | None,
 ) -> None:
@@ -272,7 +274,7 @@ def index(
     ms = None
     try:
         ms = MemSearch(list(paths), **_cfg_to_memsearch_kwargs(cfg), description=description or "")
-        n = _run(ms.index(force=force))
+        n = _run(ms.index(force=force, prune=not no_prune))
         click.echo(f"Indexed {n} chunks.")
     except MilvusException as e:
         click.echo(f"Milvus error (code {e.code}): {e.message}", err=True)

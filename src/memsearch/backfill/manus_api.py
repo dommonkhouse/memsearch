@@ -185,6 +185,7 @@ def export_manus_run(
     limit: int | None = None,
     run_id: str | None = None,
     resume: bool = False,
+    task_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     run_id = run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir = output_root / run_id
@@ -196,6 +197,9 @@ def export_manus_run(
     manifest_tasks_by_id = {str(task.get("id") or ""): task for task in existing_manifest.get("tasks", [])}
     errors_by_task = {str(error.get("task_id") or ""): error for error in existing_manifest.get("errors", [])}
     tasks = client.iter_tasks(max_tasks=limit)
+    if task_ids is not None:
+        wanted = set(task_ids)
+        tasks = [task for task in tasks if str(task.get("id") or "") in wanted]
 
     for task in tasks:
         task_id = str(task.get("id") or "")

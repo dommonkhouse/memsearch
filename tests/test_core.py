@@ -66,3 +66,18 @@ async def test_index_single_file(mem, sample_dir: Path):
 
     results = await mem.search("list comprehension")
     assert len(results) > 0
+
+
+@pytest.mark.asyncio
+async def test_index_no_prune_preserves_sources_outside_current_scope(mem, sample_dir: Path):
+    mem._paths = [str(sample_dir)]
+    assert await mem.index() > 0
+
+    subset = sample_dir / "subset"
+    subset.mkdir()
+    (subset / "new.md").write_text("# New\n\n## Fresh\n\nFresh source content.\n")
+    mem._paths = [str(subset)]
+    assert await mem.index(prune=False) > 0
+
+    results = await mem.search("virtual environment python")
+    assert len(results) > 0

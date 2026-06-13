@@ -85,7 +85,7 @@ class MemSearch:
     # Indexing
     # ------------------------------------------------------------------
 
-    async def index(self, *, force: bool = False) -> int:
+    async def index(self, *, force: bool = False, prune: bool = True) -> int:
         """Scan paths and index all markdown files.
 
         Returns the number of chunks indexed.  Also removes chunks for
@@ -104,12 +104,13 @@ class MemSearch:
                 failed += 1
                 logger.exception("Failed to index %s, skipping", f.path)
 
-        # Clean up chunks for files that no longer exist
-        indexed_sources = self._store.indexed_sources()
-        for source in indexed_sources:
-            if source not in active_sources:
-                self._store.delete_by_source(source)
-                logger.info("Removed stale chunks for deleted file: %s", source)
+        if prune:
+            # Clean up chunks for files that no longer exist in this index scope.
+            indexed_sources = self._store.indexed_sources()
+            for source in indexed_sources:
+                if source not in active_sources:
+                    self._store.delete_by_source(source)
+                    logger.info("Removed stale chunks for deleted file: %s", source)
 
         if failed:
             logger.warning("Indexed %d chunks from %d files (%d files failed)", total, len(files) - failed, failed)
