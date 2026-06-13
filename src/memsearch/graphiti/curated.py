@@ -66,9 +66,14 @@ def is_curated_source(path: Path) -> bool:
     if name in _STATUS_FILES:
         return True
 
+    # Repo-tracked seed files make hand-curated relationship episodes
+    # reproducible without tracking ignored Graphiti runtime state.
+    parts_text = "/".join(part.lower() for part in path.parts)
+    if "docs/graphiti-curated-seeds" in parts_text:
+        return True
+
     # The canonical claude-config memory tree contains curated summaries and
     # workflow notes. Top-level .memsearch daily files are intentionally omitted.
-    parts_text = "/".join(part.lower() for part in path.parts)
     return bool("claude-config/memory" in parts_text and lowered_parts & _SUMMARY_PARTS)
 
 

@@ -40,3 +40,15 @@ def test_curated_episode_builder_uses_selected_files_only(tmp_path):
     assert selection.selected == [linear]
     assert CURATED_GROUP_ID == "ms_memsearch_active_curated_v1"
     assert CURATED_MANIFEST_PATH == ".memsearch/graphiti-curated-manifest.json"
+
+
+def test_curated_selection_keeps_repo_tracked_seed_files(tmp_path):
+    seed = tmp_path / "docs" / "graphiti-curated-seeds" / "2026-06-13-mon316.md"
+    seed.parent.mkdir(parents=True)
+    seed.write_text("### MON-316 relationship\n\nGraphiti relates to FalkorDB.\n", encoding="utf-8")
+
+    episodes, selection = build_curated_episodes([seed])
+
+    assert selection.selected == [seed]
+    assert len(episodes) == 1
+    assert episodes[0].metadata["source"] == str(seed)
