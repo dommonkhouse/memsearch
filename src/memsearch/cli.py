@@ -269,6 +269,12 @@ def index(
 )
 @_common_options
 @click.option("--reranker-model", default=None, help="Cross-encoder model for reranking (empty string disables).")
+@click.option("--include-graph", is_flag=True, help="Also query the curated Graphiti sidecar.")
+@click.option("--graph-top-k", default=5, type=int, help="Number of graph facts and nodes to include.")
+@click.option("--graph-group-id", default=None, help="Graphiti group ID for --include-graph.")
+@click.option("--graph-endpoint", default=None, help="Graphiti MCP endpoint for --include-graph.")
+@click.option("--graph-host-header", default=None, help="Override Host header for --include-graph.")
+@click.option("--graph-timeout", "graph_timeout_seconds", default=None, type=int, help="Graph timeout in seconds.")
 @click.option("--json-output", "-j", is_flag=True, help="Output as JSON.")
 def search(
     query: str,
@@ -283,6 +289,12 @@ def search(
     milvus_uri: str | None,
     milvus_token: str | None,
     reranker_model: str | None,
+    include_graph: bool,
+    graph_top_k: int,
+    graph_group_id: str | None,
+    graph_endpoint: str | None,
+    graph_host_header: str | None,
+    graph_timeout_seconds: int | None,
     json_output: bool,
 ) -> None:
     """Search indexed memory for QUERY."""
@@ -305,27 +317,68 @@ def search(
     try:
         ms = MemSearch(**_cfg_to_memsearch_kwargs(cfg))
         results = _run(ms.search(query, top_k=top_k or 5, source_prefix=source_prefix))
+        graph_result = None
+        graph_error = None
+        if include_graph:
+            from .graphiti.client import GraphitiClientError
+            from .graphiti.curated import CURATED_GROUP_ID
+
+            try:
+                client = _graphiti_client_from_config(
+                    cfg,
+                    endpoint=graph_endpoint,
+                    host_header=graph_host_header,
+                    timeout_seconds=graph_timeout_seconds,
+                )
+                effective_group_id = graph_group_id if graph_group_id is not None else CURATED_GROUP_ID
+                facts = client.search_memory_facts(query, group_id=effective_group_id, limit=graph_top_k)
+                nodes = client.search_nodes(query, group_id=effective_group_id, limit=graph_top_k)
+                graph_result = {"facts": facts.get("facts", []), "nodes": nodes.get("nodes", [])}
+            except GraphitiClientError as e:
+                graph_error = str(e)
+
         if json_output:
-            click.echo(json.dumps(results, indent=2, ensure_ascii=False))
+            if include_graph:
+                output = {"vector": results, "graph": graph_result or {"facts": [], "nodes": []}}
+                if graph_error:
+                    output["graph_error"] = graph_error
+                click.echo(json.dumps(output, indent=2, ensure_ascii=False))
+            else:
+                click.echo(json.dumps(results, indent=2, ensure_ascii=False))
         else:
             if not results:
                 click.echo("No results found.")
-                return
-            for i, r in enumerate(results, 1):
-                score = r.get("score", 0)
-                source = r.get("source", "?")
-                heading = r.get("heading", "")
-                content = r.get("content", "")
-                click.echo(f"\n--- Result {i} (score: {score:.4f}) ---")
-                click.echo(f"Source: {source}")
-                if heading:
-                    click.echo(f"Heading: {heading}")
-                if len(content) > 500:
-                    click.echo(content[:500])
-                    chunk_hash = r.get("chunk_hash", "")
-                    click.echo(f"  ... [truncated, run 'memsearch expand {chunk_hash}' for full content]")
-                else:
-                    click.echo(content)
+            else:
+                for i, r in enumerate(results, 1):
+                    score = r.get("score", 0)
+                    source = r.get("source", "?")
+                    heading = r.get("heading", "")
+                    content = r.get("content", "")
+                    click.echo(f"\n--- Result {i} (score: {score:.4f}) ---")
+                    click.echo(f"Source: {source}")
+                    if heading:
+                        click.echo(f"Heading: {heading}")
+                    if len(content) > 500:
+                        click.echo(content[:500])
+                        chunk_hash = r.get("chunk_hash", "")
+                        click.echo(f"  ... [truncated, run 'memsearch expand {chunk_hash}' for full content]")
+                    else:
+                        click.echo(content)
+            if include_graph:
+                if graph_error:
+                    click.echo(f"\nGraphiti unavailable; returned vector results only: {graph_error}", err=True)
+                elif graph_result and (graph_result["facts"] or graph_result["nodes"]):
+                    click.echo("\n--- Curated graph results ---")
+                    if graph_result["facts"]:
+                        click.echo("Facts:")
+                        for fact in graph_result["facts"]:
+                            click.echo(f"- {fact.get('fact') or fact.get('name') or fact.get('uuid')}")
+                    if graph_result["nodes"]:
+                        click.echo("Nodes:")
+                        for node in graph_result["nodes"]:
+                            summary = node.get("summary", "")
+                            suffix = f" — {summary}" if summary else ""
+                            click.echo(f"- {node.get('name') or node.get('uuid')}{suffix}")
     except MilvusException as e:
         click.echo(f"Milvus error (code {e.code}): {e.message}", err=True)
         raise SystemExit(1) from None
@@ -485,6 +538,91 @@ def graph_index(
     _save_graphiti_manifest(cfg.graphiti.manifest_path, manifest)
     skipped = len(episodes) - len(pending) if not force else 0
     click.echo(f"Queued {queued} Graphiti episode(s). Skipped {skipped} unchanged episode(s).")
+
+
+@cli.command("graph-index-curated")
+@click.argument("paths", nargs=-1, required=True, type=click.Path(exists=True))
+@click.option("--limit", default=None, type=int, help="Maximum number of new curated episodes to queue.")
+@click.option("--group-id", default=None, help="Graphiti group ID.")
+@click.option("--manifest-path", default=None, help="Curated Graphiti manifest path.")
+@click.option("--endpoint", default=None, help="Graphiti MCP endpoint.")
+@click.option("--host-header", default=None, help="Override Host header for localhost-protected Graphiti MCP routes.")
+@click.option("--timeout", "timeout_seconds", default=None, type=int, help="Request timeout in seconds.")
+@click.option("--force", is_flag=True, help="Queue episodes even if their content hash is already in the manifest.")
+@click.option("--dry-run", is_flag=True, help="Build curated episodes and show counts without calling Graphiti.")
+def graph_index_curated(
+    paths: tuple[str, ...],
+    limit: int | None,
+    group_id: str | None,
+    manifest_path: str | None,
+    endpoint: str | None,
+    host_header: str | None,
+    timeout_seconds: int | None,
+    force: bool,
+    dry_run: bool,
+) -> None:
+    """Index only curated durable memory sources into Graphiti."""
+    from .graphiti.client import GraphitiClientError
+    from .graphiti.curated import CURATED_GROUP_ID, CURATED_MANIFEST_PATH, build_curated_episodes
+    from .scanner import scan_paths
+
+    if not dry_run and limit is None:
+        click.echo("Refusing uncapped curated Graphiti ingestion. Re-run with --dry-run first, then a --limit cap.", err=True)
+        raise SystemExit(1) from None
+
+    cfg = _safe_resolve_config()
+    files = scan_paths(list(paths))
+    episodes, selection = build_curated_episodes(file.path for file in files)
+    effective_manifest_path = manifest_path or CURATED_MANIFEST_PATH
+    manifest = _load_graphiti_manifest(effective_manifest_path)
+    seen = manifest["episodes"]
+    uncapped_pending = [episode for episode in episodes if force or episode.content_hash not in seen]
+    pending = uncapped_pending
+    if limit is not None:
+        pending = pending[:limit]
+
+    if dry_run:
+        click.echo(
+            "Curated Graphiti dry-run: "
+            f"{len(files)} scanned, {len(selection.selected)} selected, {len(selection.excluded)} excluded, "
+            f"{len(episodes)} episodes, {len(pending)} pending."
+        )
+        click.echo(f"Group: {group_id or CURATED_GROUP_ID}")
+        click.echo(f"Manifest: {effective_manifest_path}")
+        return
+
+    client = _graphiti_client_from_config(
+        cfg,
+        endpoint=endpoint,
+        host_header=host_header,
+        timeout_seconds=timeout_seconds,
+    )
+    effective_group_id = group_id if group_id is not None else CURATED_GROUP_ID
+    queued = 0
+    try:
+        for episode in pending:
+            client.add_memory(episode, group_id=effective_group_id)
+            seen[episode.content_hash] = {
+                "name": episode.name,
+                "source": episode.metadata.get("source", ""),
+                "group_id": effective_group_id,
+                "queued_at": datetime.now(UTC).isoformat(),
+            }
+            queued += 1
+    except GraphitiClientError as e:
+        _save_graphiti_manifest(effective_manifest_path, manifest)
+        click.echo(f"Graphiti error after queuing {queued} curated episode(s): {e}", err=True)
+        raise SystemExit(1) from None
+
+    _save_graphiti_manifest(effective_manifest_path, manifest)
+    skipped = len(episodes) - len(uncapped_pending) if not force else 0
+    deferred = len(uncapped_pending) - len(pending)
+    summary = f"Queued {queued} curated Graphiti episode(s). Skipped {skipped} unchanged episode(s)."
+    if deferred:
+        summary += f" Deferred {deferred} episode(s) by limit."
+    click.echo(summary)
+    click.echo(f"Group: {effective_group_id}")
+    click.echo(f"Manifest: {effective_manifest_path}")
 
 
 # ======================================================================
