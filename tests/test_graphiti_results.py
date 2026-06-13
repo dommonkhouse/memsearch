@@ -68,6 +68,45 @@ def test_tune_graph_results_matches_simple_word_forms() -> None:
     assert [node["name"] for node in result["nodes"]] == ["MemSearch"]
 
 
+def test_tune_graph_results_filters_known_contradictory_windows_fact() -> None:
+    result = tune_graph_results(
+        "Should Windows use Milvus Lite directly for MemSearch?",
+        [
+            {"fact": "Milvus Lite is recommended to be used with Windows."},
+            {"fact": "Windows should use Milvus Server, Zilliz Cloud, or WSL2 instead of native Milvus Lite."},
+        ],
+        [
+            {
+                "name": "Milvus Lite",
+                "summary": "Milvus Lite is recommended to be used with Windows.",
+            },
+            {
+                "name": "Windows alternatives",
+                "summary": "Windows alternatives are Milvus Server via Docker, Zilliz Cloud, and WSL2.",
+            },
+        ],
+        limit=5,
+    )
+
+    text = str(result)
+    assert "Milvus Lite is recommended to be used with Windows" not in text
+    assert result["facts"][0]["fact"] == (
+        "Windows should use Milvus Server, Zilliz Cloud, or WSL2 instead of native Milvus Lite."
+    )
+    assert result["nodes"][0]["name"] == "Windows alternatives"
+
+
+def test_tune_graph_results_treats_recovery_as_low_signal() -> None:
+    result = tune_graph_results(
+        "MON-249 homepage performance recovery",
+        [{"fact": "Dimension mismatch recovery keeps Markdown as the source of truth."}],
+        [{"name": "MemSearch", "summary": "Dimension mismatch recovery resets only the vector index."}],
+        limit=5,
+    )
+
+    assert result == {"facts": [], "nodes": []}
+
+
 def test_select_graph_center_nodes_prefers_identifier_anchors() -> None:
     centers = select_graph_center_nodes(
         "What changed in MON-316 after the Graphiti Mac Mini deployment?",

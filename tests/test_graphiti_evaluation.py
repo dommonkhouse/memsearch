@@ -31,6 +31,12 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-cli-command-roles",
         "negative-api-keys-in-config",
         "negative-milvus-source-of-truth",
+        "relationship-installation-backend-profiles",
+        "relationship-dimension-mismatch-recovery",
+        "relationship-milvus-lite-server-mode",
+        "relationship-progressive-disclosure-transcript",
+        "relationship-troubleshoot-missing-stale-results",
+        "negative-windows-milvus-lite-native",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -155,6 +161,58 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "derived index",
     )
     assert "Milvus is the source of truth" in cases["negative-milvus-source-of-truth"].graph_must_not_contain
+    assert cases["relationship-installation-backend-profiles"].graph_must_contain == (
+        "ONNX",
+        "OpenAI",
+        "Milvus Lite",
+        "Milvus Server",
+        "Zilliz Cloud",
+        "API key",
+    )
+    assert "Milvus Lite is recommended to be used with Windows" in cases[
+        "relationship-installation-backend-profiles"
+    ].graph_must_not_contain
+    assert cases["relationship-dimension-mismatch-recovery"].graph_must_contain == (
+        "dimension mismatch",
+        "embedding provider/model",
+        "reset",
+        "re-index",
+        "Markdown",
+    )
+    assert cases["relationship-milvus-lite-server-mode"].graph_must_contain == (
+        "Milvus Lite",
+        "one-time index",
+        "Server mode",
+        "memsearch watch",
+        "Zilliz Cloud",
+    )
+    assert cases["relationship-progressive-disclosure-transcript"].graph_must_contain == (
+        "L1 search",
+        "L2 expand",
+        "L3 transcript",
+        "chunk",
+        "full markdown section",
+    )
+    assert cases["relationship-troubleshoot-missing-stale-results"].graph_must_contain == (
+        "memsearch stats",
+        "index needs to be rebuilt",
+        "stale",
+        "too short or vague",
+        "embedding provider/model",
+    )
+    assert cases["negative-windows-milvus-lite-native"].graph_must_contain == (
+        "Windows",
+        "Milvus Lite",
+        "Milvus Server",
+        "Zilliz Cloud",
+        "WSL2",
+    )
+    assert "Milvus Lite works natively on Windows" in cases[
+        "negative-windows-milvus-lite-native"
+    ].graph_must_not_contain
+    assert "Milvus Lite is recommended to be used with Windows" in cases[
+        "negative-windows-milvus-lite-native"
+    ].graph_must_not_contain
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:

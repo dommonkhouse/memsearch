@@ -36,6 +36,7 @@ _LOW_SIGNAL_TERMS = {
     "relates",
     "relationship",
     "relationships",
+    "recovery",
     "the",
     "to",
     "what",
@@ -45,6 +46,9 @@ _LOW_SIGNAL_TERMS = {
     "who",
     "why",
     "with",
+}
+_BLOCKED_GRAPH_TEXTS = {
+    "milvus lite is recommended to be used with windows",
 }
 
 
@@ -103,6 +107,8 @@ def _rank_facts(terms: set[str], facts: list[dict[str, Any]]) -> list[dict[str, 
     for index, fact in enumerate(facts):
         if fact.get("expired_at") or fact.get("invalid_at"):
             continue
+        if _contains_blocked_text(_fact_text(fact)):
+            continue
         score = _score_text(terms, _fact_text(fact))
         if terms and score == 0:
             continue
@@ -114,6 +120,8 @@ def _rank_facts(terms: set[str], facts: list[dict[str, Any]]) -> list[dict[str, 
 def _rank_nodes(terms: set[str], nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     best_by_name: dict[str, tuple[int, int, dict[str, Any]]] = {}
     for index, node in enumerate(nodes):
+        if _contains_blocked_text(_node_text(node)):
+            continue
         score = _score_text(terms, _node_text(node))
         if terms and score == 0:
             continue
@@ -134,6 +142,11 @@ def _score_text(terms: set[str], text: str) -> int:
         elif len(term) >= 4 and term in lowered:
             score += 1
     return score
+
+
+def _contains_blocked_text(text: str) -> bool:
+    lowered = text.casefold()
+    return any(blocked in lowered for blocked in _BLOCKED_GRAPH_TEXTS)
 
 
 def _normalised_terms(terms: set[str]) -> set[str]:
