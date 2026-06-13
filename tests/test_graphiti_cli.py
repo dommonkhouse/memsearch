@@ -252,14 +252,14 @@ def test_search_include_graph_preserves_vector_results_and_adds_curated_graph(mo
     assert [node["name"] for node in payload["graph"]["nodes"]] == ["Graphiti"]
     assert FakeMemSearch.instances[0].calls[0]["query"] == "MON-316"
     assert FakeGraphitiClient.instances[0].calls == [
-        ("search_nodes", {"query": "MON-316", "group_id": "ms_memsearch_active_curated_v1", "limit": 5}),
-        ("search_memory_facts", {"query": "MON-316", "group_id": "ms_memsearch_active_curated_v1", "limit": 5}),
+        ("search_nodes", {"query": "MON-316", "group_id": "ms_memsearch_active_curated_v1", "limit": 15}),
+        ("search_memory_facts", {"query": "MON-316", "group_id": "ms_memsearch_active_curated_v1", "limit": 15}),
         (
             "search_memory_facts",
             {
                 "query": "MON-316",
                 "group_id": "ms_memsearch_active_curated_v1",
-                "limit": 5,
+                "limit": 15,
                 "center_node_uuid": "graphiti-node",
             },
         ),

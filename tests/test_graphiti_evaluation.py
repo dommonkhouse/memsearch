@@ -24,6 +24,13 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-linear-source-sync",
         "relationship-secret-scan-gates",
         "negative-index-raw-manus-exports",
+        "relationship-platform-capture-shared-memory",
+        "relationship-index-chunk-dedup-flow",
+        "relationship-config-priority-chain",
+        "relationship-watch-compact-loop",
+        "relationship-cli-command-roles",
+        "negative-api-keys-in-config",
+        "negative-milvus-source-of-truth",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -101,6 +108,53 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "index",
     )
     assert "index raw Manus exports" in cases["negative-index-raw-manus-exports"].graph_must_not_contain
+    assert cases["relationship-platform-capture-shared-memory"].graph_must_contain == (
+        "Claude Code",
+        "OpenClaw",
+        "OpenCode",
+        "Codex CLI",
+        "daily markdown",
+        "Milvus",
+    )
+    assert cases["relationship-index-chunk-dedup-flow"].graph_must_contain == (
+        "Scanner",
+        "Chunker",
+        "SHA-256",
+        "Milvus",
+        "stale chunks",
+    )
+    assert cases["relationship-config-priority-chain"].graph_must_contain == (
+        "built-in defaults",
+        "~/.memsearch/config.toml",
+        ".memsearch.toml",
+        "CLI flags",
+    )
+    assert cases["relationship-watch-compact-loop"].graph_must_contain == (
+        "file watcher",
+        "compact",
+        "daily markdown",
+        "re-index",
+    )
+    assert cases["relationship-cli-command-roles"].graph_must_contain == (
+        "memsearch index",
+        "memsearch search",
+        "memsearch expand",
+        "memsearch compact",
+        "memsearch watch",
+    )
+    assert cases["negative-api-keys-in-config"].graph_must_contain == (
+        "API keys",
+        "environment variables",
+        "never writes API keys to config files",
+    )
+    assert "store API keys in config" in cases["negative-api-keys-in-config"].graph_must_not_contain
+    assert cases["negative-milvus-source-of-truth"].graph_must_contain == (
+        "Markdown",
+        "source of truth",
+        "Milvus",
+        "derived index",
+    )
+    assert "Milvus is the source of truth" in cases["negative-milvus-source-of-truth"].graph_must_not_contain
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:

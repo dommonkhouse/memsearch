@@ -90,7 +90,8 @@ def dedupe_graph_facts(facts: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _query_terms(query: str) -> set[str]:
-    return {token for token in _TOKEN_RE.findall(query.lower()) if token not in _LOW_SIGNAL_TERMS and len(token) > 1}
+    terms = {token for token in _TOKEN_RE.findall(query.lower()) if token not in _LOW_SIGNAL_TERMS and len(token) > 1}
+    return _normalised_terms(terms)
 
 
 def _anchor_terms(terms: set[str]) -> set[str]:
@@ -125,7 +126,7 @@ def _rank_nodes(terms: set[str], nodes: list[dict[str, Any]]) -> list[dict[str, 
 
 def _score_text(terms: set[str], text: str) -> int:
     lowered = text.lower()
-    text_terms = set(_TOKEN_RE.findall(lowered))
+    text_terms = _normalised_terms(set(_TOKEN_RE.findall(lowered)))
     score = 0
     for term in terms:
         if term in text_terms:
@@ -133,6 +134,20 @@ def _score_text(terms: set[str], text: str) -> int:
         elif len(term) >= 4 and term in lowered:
             score += 1
     return score
+
+
+def _normalised_terms(terms: set[str]) -> set[str]:
+    normalised = set(terms)
+    for term in terms:
+        if any(char in term for char in "._/-") or any(char.isdigit() for char in term):
+            continue
+        if term.endswith("ies") and len(term) > 4:
+            normalised.add(f"{term[:-3]}y")
+        if term.endswith("es") and len(term) > 4:
+            normalised.add(term[:-2])
+        if term.endswith("s") and len(term) > 3:
+            normalised.add(term[:-1])
+    return normalised
 
 
 def _term_weight(term: str) -> int:

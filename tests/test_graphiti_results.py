@@ -52,6 +52,22 @@ def test_tune_graph_results_ignores_generic_relationship_word() -> None:
     assert result == {"facts": [], "nodes": []}
 
 
+def test_tune_graph_results_matches_simple_word_forms() -> None:
+    result = tune_graph_results(
+        "Does MemSearch write API keys into config files?",
+        [],
+        [
+            {
+                "name": "MemSearch",
+                "summary": "MemSearch API key policy never writes API keys to config files.",
+            }
+        ],
+        limit=5,
+    )
+
+    assert [node["name"] for node in result["nodes"]] == ["MemSearch"]
+
+
 def test_select_graph_center_nodes_prefers_identifier_anchors() -> None:
     centers = select_graph_center_nodes(
         "What changed in MON-316 after the Graphiti Mac Mini deployment?",
