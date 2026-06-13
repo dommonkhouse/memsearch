@@ -18,5 +18,7 @@ Default `memsearch search` queries Graphiti as a separate graph lane while prese
 The active MON-316 workstream is the branch `dom/mon-316-graphiti-falkordb` in `/Users/dominicmonkhouse/Projects/memsearch-mon316-graphiti`.
 Local HEAD `1ea2509` is the commit `feat: add curated graphiti recall path` on that branch.
 That commit added the curated Graphiti recall path for MemSearch, including `memsearch graph-index-curated`, default graph-on `memsearch search`, `--no-graph`, and vector-first Graphiti fallback behaviour.
-The branch `dom/mon-316-graphiti-falkordb` is connected to the Graphiti and FalkorDB sidecar work tracked by MON-316.
+The branch `dom/mon-316-graphiti-falkordb` connects MON-316 to Graphiti.
+The branch `dom/mon-316-graphiti-falkordb` connects MON-316 to FalkorDB.
+The branch `dom/mon-316-graphiti-falkordb` connects Graphiti relationship recall to the FalkorDB-backed graph sidecar.
 Graphiti/FalkorDB remains a sidecar; vector results remain primary.
