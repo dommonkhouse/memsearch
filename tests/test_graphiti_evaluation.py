@@ -37,6 +37,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-progressive-disclosure-transcript",
         "relationship-troubleshoot-missing-stale-results",
         "negative-windows-milvus-lite-native",
+        "relationship-embedding-evaluation-default",
+        "relationship-embedding-model-tradeoffs",
+        "relationship-python-api-index-lifecycle",
+        "relationship-python-api-isolation-agent-loop",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -213,6 +217,34 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
     assert "Milvus Lite is recommended to be used with Windows" in cases[
         "negative-windows-milvus-lite-native"
     ].graph_must_not_contain
+    assert cases["relationship-embedding-evaluation-default"].graph_must_contain == (
+        "gpahal/bge-m3-onnx-int8",
+        "Recall@5",
+        "Chinese",
+        "no API key",
+        "torch",
+    )
+    assert cases["relationship-embedding-model-tradeoffs"].graph_must_contain == (
+        "PyTorch",
+        "OpenAI text-embedding-3-small",
+        "Ollama",
+        "Chinese",
+        "Q5 quantization",
+    )
+    assert cases["relationship-python-api-index-lifecycle"].graph_must_contain == (
+        "force=True",
+        "content-hash dedup",
+        "stale cleanup",
+        "deleted files",
+    )
+    assert cases["relationship-python-api-isolation-agent-loop"].graph_must_contain == (
+        "search",
+        "saving new memory",
+        "index",
+        "paths",
+        "collection",
+        "milvus_uri",
+    )
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:

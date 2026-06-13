@@ -229,6 +229,36 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         ),
     ),
     GraphEvaluationCase(
+        name="relationship-embedding-evaluation-default",
+        kind="relationship",
+        query="Why did MemSearch choose ONNX bge-m3 int8 as the Claude Code plugin default?",
+        graph_must_contain=(
+            "gpahal/bge-m3-onnx-int8",
+            "Recall@5",
+            "Chinese",
+            "no API key",
+            "torch",
+        ),
+    ),
+    GraphEvaluationCase(
+        name="relationship-embedding-model-tradeoffs",
+        kind="relationship",
+        query="How do ONNX bge-m3 int8 PyTorch OpenAI small and Ollama relate in MemSearch embedding evaluation?",
+        graph_must_contain=("PyTorch", "OpenAI text-embedding-3-small", "Ollama", "Chinese", "Q5 quantization"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-python-api-index-lifecycle",
+        kind="relationship",
+        query="How does the Python API handle force re-index stale cleanup deleted content and content-hash dedup?",
+        graph_must_contain=("force=True", "content-hash dedup", "stale cleanup", "deleted files"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-python-api-isolation-agent-loop",
+        kind="relationship",
+        query="How do MemSearch Python API agent loops and per-user isolation relate to paths collections and milvus_uri?",
+        graph_must_contain=("search", "saving new memory", "index", "paths", "collection", "milvus_uri"),
+    ),
+    GraphEvaluationCase(
         name="negative-mon-249-performance",
         kind="negative",
         query="MON-249 homepage performance recovery",
