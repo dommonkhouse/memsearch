@@ -14,6 +14,11 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "negative-open-brain-nord-hostnames",
         "negative-stale-mac-mini-ip",
         "negative-retired-graphiti-proxy",
+        "relationship-memory-recall-codex-claude",
+        "relationship-memory-recall-layers",
+        "relationship-memsearch-hybrid-identifiers",
+        "relationship-open-brain-advisory-guardrails",
+        "negative-codex-forked-memory-recall",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -43,6 +48,29 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
     assert "restart NordVPN" in cases["negative-nordvpn-meshnet-restart"].graph_must_not_contain
     assert "historical" in cases["negative-stale-mac-mini-ip"].graph_must_contain
     assert "use the tailnet proxy" in cases["negative-retired-graphiti-proxy"].graph_must_not_contain
+    assert cases["relationship-memory-recall-codex-claude"].graph_must_contain == (
+        "Codex",
+        "main conversation context",
+        "Claude Code",
+        "forked subagent",
+    )
+    assert cases["relationship-memory-recall-layers"].graph_must_contain == (
+        "L1 search",
+        "L2 expand",
+        "L3 transcript",
+    )
+    assert cases["relationship-memsearch-hybrid-identifiers"].graph_must_contain == (
+        "BM25",
+        "exact identifiers",
+        "dense",
+    )
+    assert cases["relationship-open-brain-advisory-guardrails"].graph_must_contain == (
+        "advisory patterns",
+        "client_of",
+        "works_on",
+        "stronger evidence",
+    )
+    assert "Codex uses a forked subagent" in cases["negative-codex-forked-memory-recall"].graph_must_not_contain
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:
