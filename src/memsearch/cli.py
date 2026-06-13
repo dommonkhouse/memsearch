@@ -114,6 +114,30 @@ def _graphiti_client_from_config(
     )
 
 
+def _search_curated_graph(client, query: str, *, group_id: str, limit: int) -> dict:
+    from .graphiti.results import dedupe_graph_facts, select_graph_center_nodes, tune_graph_results
+
+    nodes = client.search_nodes(query, group_id=group_id, limit=limit)
+    raw_nodes = nodes.get("nodes", [])
+    facts = client.search_memory_facts(query, group_id=group_id, limit=limit)
+    raw_facts = list(facts.get("facts", []))
+    for center_node in select_graph_center_nodes(query, raw_nodes, limit=2):
+        centered = client.search_memory_facts(
+            query,
+            group_id=group_id,
+            limit=limit,
+            center_node_uuid=center_node["uuid"],
+        )
+        center_name = center_node.get("name") or center_node.get("uuid")
+        raw_facts.extend({**fact, "graph_center_node": center_name} for fact in centered.get("facts", []))
+    return tune_graph_results(
+        query,
+        dedupe_graph_facts(raw_facts),
+        raw_nodes,
+        limit=limit,
+    )
+
+
 def _load_graphiti_manifest(path: str) -> dict:
     manifest_path = Path(path).expanduser()
     if not manifest_path.is_file():
@@ -269,7 +293,11 @@ def index(
 )
 @_common_options
 @click.option("--reranker-model", default=None, help="Cross-encoder model for reranking (empty string disables).")
-@click.option("--include-graph", is_flag=True, help="Also query the curated Graphiti sidecar.")
+@click.option(
+    "--include-graph/--no-graph",
+    default=True,
+    help="Query the curated Graphiti sidecar, or disable it for vector-only search.",
+)
 @click.option("--graph-top-k", default=5, type=int, help="Number of graph facts and nodes to include.")
 @click.option("--graph-group-id", default=None, help="Graphiti group ID for --include-graph.")
 @click.option("--graph-endpoint", default=None, help="Graphiti MCP endpoint for --include-graph.")
@@ -331,9 +359,12 @@ def search(
                     timeout_seconds=graph_timeout_seconds,
                 )
                 effective_group_id = graph_group_id if graph_group_id is not None else CURATED_GROUP_ID
-                facts = client.search_memory_facts(query, group_id=effective_group_id, limit=graph_top_k)
-                nodes = client.search_nodes(query, group_id=effective_group_id, limit=graph_top_k)
-                graph_result = {"facts": facts.get("facts", []), "nodes": nodes.get("nodes", [])}
+                graph_result = _search_curated_graph(
+                    client,
+                    query,
+                    group_id=effective_group_id,
+                    limit=graph_top_k,
+                )
             except GraphitiClientError as e:
                 graph_error = str(e)
 
@@ -473,6 +504,78 @@ def graph_search(
             summary = node.get("summary", "")
             suffix = f" — {summary}" if summary else ""
             click.echo(f"- {node.get('name') or node.get('uuid')}{suffix}")
+
+
+@cli.command("graph-eval")
+@click.option("--top-k", "-k", default=5, type=int, help="Number of vector and graph results per case.")
+@click.option("--group-id", default=None, help="Graphiti group ID.")
+@click.option("--endpoint", default=None, help="Graphiti MCP endpoint.")
+@click.option("--host-header", default=None, help="Override Host header for localhost-protected Graphiti MCP routes.")
+@click.option("--timeout", "timeout_seconds", default=None, type=int, help="Graph timeout in seconds.")
+@click.option("--json-output", "-j", is_flag=True, help="Output as JSON.")
+def graph_eval(
+    top_k: int,
+    group_id: str | None,
+    endpoint: str | None,
+    host_header: str | None,
+    timeout_seconds: int | None,
+    json_output: bool,
+) -> None:
+    """Run a small vector-vs-graph recall evaluation harness."""
+    from .core import MemSearch
+    from .graphiti.client import GraphitiClientError
+    from .graphiti.curated import CURATED_GROUP_ID
+    from .graphiti.evaluation import DEFAULT_GRAPH_EVALUATION_CASES, evaluate_payload
+
+    cfg = _safe_resolve_config()
+    ms = None
+    evaluations = []
+    try:
+        ms = MemSearch(**_cfg_to_memsearch_kwargs(cfg))
+        client = _graphiti_client_from_config(
+            cfg,
+            endpoint=endpoint,
+            host_header=host_header,
+            timeout_seconds=timeout_seconds,
+        )
+        effective_group_id = group_id if group_id is not None else CURATED_GROUP_ID
+        for case in DEFAULT_GRAPH_EVALUATION_CASES:
+            vector_results = _run(ms.search(case.query, top_k=top_k))
+            payload: dict = {"vector": vector_results, "graph": {"facts": [], "nodes": []}}
+            try:
+                payload["graph"] = _search_curated_graph(
+                    client,
+                    case.query,
+                    group_id=effective_group_id,
+                    limit=top_k,
+                )
+            except GraphitiClientError as e:
+                payload["graph_error"] = str(e)
+            evaluations.append(evaluate_payload(case, payload))
+    finally:
+        if ms is not None:
+            ms.close()
+
+    passed = sum(1 for item in evaluations if item["passed"])
+    output = {
+        "passed": passed,
+        "failed": len(evaluations) - passed,
+        "cases": evaluations,
+    }
+    if json_output:
+        click.echo(json.dumps(output, indent=2, ensure_ascii=False))
+    else:
+        click.echo(f"Graph evaluation: {passed}/{len(evaluations)} passed")
+        for item in evaluations:
+            status = "PASS" if item["passed"] else "FAIL"
+            click.echo(f"- {status} {item['name']}: {item['query']}")
+            if item["graph_error"]:
+                click.echo(f"  graph_error: {item['graph_error']}")
+            if item["graph_unwanted_hits"]:
+                click.echo(f"  unwanted graph hits: {', '.join(item['graph_unwanted_hits'])}")
+
+    if passed != len(evaluations):
+        raise SystemExit(1)
 
 
 @cli.command("graph-index")

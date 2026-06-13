@@ -24,13 +24,41 @@ class FakeGraphitiClient:
         self.calls.append(("get_status", {}))
         return {"status": "ok", "message": "Graphiti is healthy"}
 
-    def search_memory_facts(self, query, *, group_id="", limit=5):
-        self.calls.append(("search_memory_facts", {"query": query, "group_id": group_id, "limit": limit}))
-        return {"facts": [{"fact": "Graphiti uses FalkorDB"}]}
+    def search_memory_facts(self, query, *, group_id="", limit=5, center_node_uuid=None):
+        call = {"query": query, "group_id": group_id, "limit": limit}
+        if center_node_uuid:
+            call["center_node_uuid"] = center_node_uuid
+        self.calls.append(("search_memory_facts", call))
+        if center_node_uuid:
+            return {
+                "facts": [
+                    {
+                        "fact": "MON-316 centred Graphiti relationship detail uses FalkorDB.",
+                        "uuid": "centered-fact",
+                    }
+                ]
+            }
+        return {
+            "facts": [
+                {"fact": "MON-316 uses Graphiti with FalkorDB", "uuid": "base-fact"},
+                {
+                    "fact": "Graphiti will be checked with ruff during the plan execution.",
+                    "expired_at": "2026-06-12T22:02:37.045366Z",
+                    "invalid_at": "2026-06-11T10:23:41.342000Z",
+                },
+                {"fact": "MON-310 owns unrelated CMM taxonomy cleanup."},
+            ]
+        }
 
     def search_nodes(self, query, *, group_id="", limit=5):
         self.calls.append(("search_nodes", {"query": query, "group_id": group_id, "limit": limit}))
-        return {"nodes": [{"name": "Graphiti", "summary": "Temporal memory graph"}]}
+        return {
+            "nodes": [
+                {"name": "Graphiti", "uuid": "graphiti-node", "summary": "Temporal memory graph for MON-316"},
+                {"name": "Graphiti", "uuid": "graphiti-duplicate", "summary": "Duplicate lower quality node"},
+                {"name": "MON-310", "uuid": "mon310-node", "summary": "Unrelated CMM taxonomy cleanup"},
+            ]
+        }
 
     def add_memory(self, episode, *, group_id=""):
         self.calls.append(("add_memory", {"name": episode.name, "group_id": group_id}))
@@ -38,7 +66,7 @@ class FakeGraphitiClient:
 
 
 class BrokenGraphitiClient(FakeGraphitiClient):
-    def search_memory_facts(self, query, *, group_id="", limit=5):
+    def search_memory_facts(self, query, *, group_id="", limit=5, center_node_uuid=None):
         from memsearch.graphiti.client import GraphitiClientError
 
         raise GraphitiClientError("sidecar offline")
@@ -106,7 +134,7 @@ def test_graph_search_outputs_facts_and_nodes(monkeypatch, tmp_path):
     result = CliRunner().invoke(cli, ["graph-search", "Graphiti"])
 
     assert result.exit_code == 0
-    assert "Graphiti uses FalkorDB" in result.output
+    assert "MON-316 uses Graphiti with FalkorDB" in result.output
     assert "Temporal memory graph" in result.output
     assert FakeGraphitiClient.instances[0].calls == [
         ("search_memory_facts", {"query": "Graphiti", "group_id": "ms_test", "limit": 5}),
@@ -216,12 +244,57 @@ def test_search_include_graph_preserves_vector_results_and_adds_curated_graph(mo
     payload = json.loads(result.output)
     assert payload["vector"][0]["chunk_hash"] == "exact-mon-316"
     assert payload["vector"][0]["heading"] == "MON-316"
-    assert payload["graph"]["facts"][0]["fact"] == "Graphiti uses FalkorDB"
+    assert payload["graph"]["facts"][0]["fact"] == "MON-316 uses Graphiti with FalkorDB"
+    assert payload["graph"]["facts"][1]["fact"] == "MON-316 centred Graphiti relationship detail uses FalkorDB."
+    assert payload["graph"]["facts"][1]["graph_center_node"] == "Graphiti"
+    assert all("ruff" not in fact["fact"] for fact in payload["graph"]["facts"])
+    assert all("MON-310" not in fact["fact"] for fact in payload["graph"]["facts"])
+    assert [node["name"] for node in payload["graph"]["nodes"]] == ["Graphiti"]
     assert FakeMemSearch.instances[0].calls[0]["query"] == "MON-316"
     assert FakeGraphitiClient.instances[0].calls == [
-        ("search_memory_facts", {"query": "MON-316", "group_id": "ms_memsearch_active_curated_v1", "limit": 5}),
         ("search_nodes", {"query": "MON-316", "group_id": "ms_memsearch_active_curated_v1", "limit": 5}),
+        ("search_memory_facts", {"query": "MON-316", "group_id": "ms_memsearch_active_curated_v1", "limit": 5}),
+        (
+            "search_memory_facts",
+            {
+                "query": "MON-316",
+                "group_id": "ms_memsearch_active_curated_v1",
+                "limit": 5,
+                "center_node_uuid": "graphiti-node",
+            },
+        ),
     ]
+
+
+def test_search_defaults_to_graph_with_vector_results_primary(monkeypatch, tmp_path):
+    FakeGraphitiClient.instances = []
+    FakeMemSearch.instances = []
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+    monkeypatch.setattr("memsearch.core.MemSearch", FakeMemSearch)
+    monkeypatch.setattr("memsearch.graphiti.client.GraphitiClient", FakeGraphitiClient)
+
+    result = CliRunner().invoke(cli, ["search", "MON-316", "--json-output"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["vector"][0]["chunk_hash"] == "exact-mon-316"
+    assert payload["graph"]["facts"][0]["fact"] == "MON-316 uses Graphiti with FalkorDB"
+
+
+def test_search_no_graph_returns_vector_only_json(monkeypatch, tmp_path):
+    FakeGraphitiClient.instances = []
+    FakeMemSearch.instances = []
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+    monkeypatch.setattr("memsearch.core.MemSearch", FakeMemSearch)
+    monkeypatch.setattr("memsearch.graphiti.client.GraphitiClient", FakeGraphitiClient)
+
+    result = CliRunner().invoke(cli, ["search", "MON-316", "--no-graph", "--json-output"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert isinstance(payload, list)
+    assert payload[0]["chunk_hash"] == "exact-mon-316"
+    assert FakeGraphitiClient.instances == []
 
 
 def test_search_include_graph_falls_back_to_vector_when_graphiti_fails(monkeypatch, tmp_path):

@@ -75,6 +75,31 @@ def test_search_memory_facts_uses_current_graphiti_schema():
     ]
 
 
+def test_search_memory_facts_can_center_on_node_uuid():
+    transport = FakeTransport()
+    client = GraphitiClient("http://127.0.0.1:8018/mcp", transport=transport)
+
+    result = client.search_memory_facts(
+        "How does Graphiti relate to FalkorDB?",
+        group_id="ms_memsearch_ae2d4f9b",
+        limit=5,
+        center_node_uuid="node-1",
+    )
+
+    assert result["facts"][0]["episodes"] == ["episode-1"]
+    assert transport.calls == [
+        (
+            "search_memory_facts",
+            {
+                "query": "How does Graphiti relate to FalkorDB?",
+                "group_ids": ["ms_memsearch_ae2d4f9b"],
+                "max_facts": 5,
+                "center_node_uuid": "node-1",
+            },
+        )
+    ]
+
+
 def test_search_nodes_uses_current_graphiti_schema():
     transport = FakeTransport()
     client = GraphitiClient("http://127.0.0.1:8018/mcp", transport=transport)

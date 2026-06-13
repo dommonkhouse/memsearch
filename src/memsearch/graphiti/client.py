@@ -99,10 +99,19 @@ class GraphitiClient:
             arguments["reference_time"] = episode.reference_time
         return self._checked(self.transport.call_tool("add_memory", arguments))
 
-    def search_memory_facts(self, query: str, *, group_id: str = "", limit: int = 5) -> dict[str, Any]:
+    def search_memory_facts(
+        self,
+        query: str,
+        *,
+        group_id: str = "",
+        limit: int = 5,
+        center_node_uuid: str | None = None,
+    ) -> dict[str, Any]:
         arguments: dict[str, Any] = {"query": query, "max_facts": limit}
         if group_id:
             arguments["group_ids"] = [group_id]
+        if center_node_uuid:
+            arguments["center_node_uuid"] = center_node_uuid
         return self._checked(self.transport.call_tool("search_memory_facts", arguments))
 
     def search_nodes(self, query: str, *, group_id: str = "", limit: int = 5) -> dict[str, Any]:
