@@ -19,6 +19,11 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-memsearch-hybrid-identifiers",
         "relationship-open-brain-advisory-guardrails",
         "negative-codex-forked-memory-recall",
+        "relationship-source-freshness-cadence",
+        "relationship-manus-card-safety-lane",
+        "relationship-linear-source-sync",
+        "relationship-secret-scan-gates",
+        "negative-index-raw-manus-exports",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -71,6 +76,31 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "stronger evidence",
     )
     assert "Codex uses a forked subagent" in cases["negative-codex-forked-memory-recall"].graph_must_not_contain
+    assert cases["relationship-source-freshness-cadence"].graph_must_contain == (
+        "Linear",
+        "daily",
+        "Manus",
+        "weekly",
+    )
+    assert cases["relationship-manus-card-safety-lane"].graph_must_contain == (
+        "Manus",
+        "card lane",
+        "raw exports",
+        "not MemSearch-ready",
+    )
+    assert cases["relationship-linear-source-sync"].graph_must_contain == (
+        "Linear",
+        "read-only GraphQL",
+        "last_success_at",
+        "dry-run previews",
+    )
+    assert cases["relationship-secret-scan-gates"].graph_must_contain == (
+        "scan raw output",
+        "scan promoted output",
+        "scan cards",
+        "index",
+    )
+    assert "index raw Manus exports" in cases["negative-index-raw-manus-exports"].graph_must_not_contain
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:
