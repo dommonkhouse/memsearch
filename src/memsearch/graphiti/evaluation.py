@@ -80,6 +80,32 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         graph_must_not_contain=("should use .nord", "use 100.87.225.99", "100.87.225.99 is current"),
     ),
     GraphEvaluationCase(
+        name="relationship-memory-recall-codex-claude",
+        kind="relationship",
+        query="How does memory recall differ between Codex and Claude Code?",
+        graph_must_contain=("Codex", "main conversation context", "Claude Code", "forked subagent"),
+        graph_must_not_contain=("Codex uses a forked subagent",),
+    ),
+    GraphEvaluationCase(
+        name="relationship-memory-recall-layers",
+        kind="relationship",
+        query="What are the L1 L2 and L3 layers in MemSearch memory recall?",
+        graph_must_contain=("L1 search", "L2 expand", "L3 transcript"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-memsearch-hybrid-identifiers",
+        kind="relationship",
+        query="Why does MemSearch help with exact identifiers compared with dense-only memory search?",
+        graph_must_contain=("BM25", "exact identifiers", "dense"),
+    ),
+    GraphEvaluationCase(
+        name="relationship-open-brain-advisory-guardrails",
+        kind="relationship",
+        query="What relationship edges should Open Brain avoid inferring from advisory conversations?",
+        graph_must_contain=("advisory patterns", "client_of", "works_on", "stronger evidence"),
+        graph_must_not_contain=("Dominic works_on salon owners", "Dominic client_of salon owners"),
+    ),
+    GraphEvaluationCase(
         name="negative-mon-249-performance",
         kind="negative",
         query="MON-249 homepage performance recovery",
@@ -122,6 +148,13 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         kind="negative",
         query="Should Graphiti tailnet access use the retired tailnet proxy LaunchAgent or old SSH-forward route?",
         graph_must_not_contain=("use the tailnet proxy", "use SSH-forward", "use ssh forward", "should use .nord"),
+    ),
+    GraphEvaluationCase(
+        name="negative-codex-forked-memory-recall",
+        kind="negative",
+        query="Does Codex memory-recall run inside a forked subagent?",
+        graph_must_contain=("Codex", "main conversation context"),
+        graph_must_not_contain=("Codex uses a forked subagent", "Codex memory-recall uses a forked subagent"),
     ),
 )
 
