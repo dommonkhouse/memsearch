@@ -300,7 +300,7 @@ def index(
     default=True,
     help="Query the curated Graphiti sidecar, or disable it for vector-only search.",
 )
-@click.option("--graph-top-k", default=5, type=int, help="Number of graph facts and nodes to include.")
+@click.option("--graph-top-k", default=15, type=int, help="Number of graph facts and nodes to include.")
 @click.option("--graph-group-id", default=None, help="Graphiti group ID for --include-graph.")
 @click.option("--graph-endpoint", default=None, help="Graphiti MCP endpoint for --include-graph.")
 @click.option("--graph-host-header", default=None, help="Override Host header for --include-graph.")
@@ -509,7 +509,7 @@ def graph_search(
 
 
 @cli.command("graph-eval")
-@click.option("--top-k", "-k", default=5, type=int, help="Number of vector and graph results per case.")
+@click.option("--top-k", "-k", default=15, type=int, help="Number of vector and graph results per case.")
 @click.option("--group-id", default=None, help="Graphiti group ID.")
 @click.option("--endpoint", default=None, help="Graphiti MCP endpoint.")
 @click.option("--host-header", default=None, help="Override Host header for localhost-protected Graphiti MCP routes.")
