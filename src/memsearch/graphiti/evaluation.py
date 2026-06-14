@@ -911,6 +911,20 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         graph_must_not_contain=("127.0.0.1:8018 is current", "ms_memsearch_ae2d4f9b is current"),
     ),
     GraphEvaluationCase(
+        name="relationship-batch021-platform-index-boundaries",
+        kind="relationship",
+        query="Claude Code Codex OpenClaw OpenCode platform index capture recall cold-start boundaries",
+        graph_must_contain=(
+            "Claude Code",
+            "forked subagent",
+            "Codex",
+            "OpenClaw",
+            "agent_end",
+            "OpenCode",
+            "SQLite daemon",
+        ),
+    ),
+    GraphEvaluationCase(
         name="negative-mon-249-performance",
         kind="negative",
         query="MON-249 homepage performance recovery",
