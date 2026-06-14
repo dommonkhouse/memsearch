@@ -74,6 +74,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-graphiti-runtime-isolation",
         "relationship-graphiti-login-supervision-boundary",
         "relationship-graphiti-rollback-boundary",
+        "relationship-platform-cold-start-injection",
+        "relationship-platform-capture-isolation",
+        "relationship-platform-watch-index-modes",
+        "relationship-opencode-sidecar-boundary",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -559,6 +563,48 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         ".memsearch/memory",
         "Graphiti manifest",
     )
+    assert cases["relationship-platform-cold-start-injection"].graph_must_contain == (
+        "Claude Code",
+        "SessionStart",
+        "Codex",
+        "memory file count and date range",
+        "OpenClaw",
+        "before_agent_start",
+        "OpenCode",
+        "system.transform",
+    )
+    assert cases["relationship-platform-capture-isolation"].graph_must_contain == (
+        "Claude Code",
+        "stop_hook_active",
+        "Codex",
+        "features.hooks=false",
+        "OpenClaw",
+        "MEMSEARCH_NO_WATCH",
+        "OpenCode",
+        "XDG_CONFIG_HOME",
+    )
+    assert cases["relationship-platform-watch-index-modes"].graph_must_contain == (
+        "Claude Code",
+        "memsearch watch",
+        "Codex",
+        "Milvus Lite",
+        "one-time index",
+        "OpenClaw",
+        "background",
+        "OpenCode",
+        "capture-daemon.py",
+    )
+    assert cases["relationship-opencode-sidecar-boundary"].graph_must_contain == (
+        "OpenCode SQLite",
+        "source of truth",
+        "markdown",
+        "opencode-turns.db",
+        "derived capture state",
+        "session+turn anchor",
+    )
+    assert "opencode-turns.db is the source of truth" in cases[
+        "relationship-opencode-sidecar-boundary"
+    ].graph_must_not_contain
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:
