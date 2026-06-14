@@ -93,6 +93,7 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-batch019-mini-login-session-boundary",
         "relationship-batch019-mini-rollback-safety",
         "relationship-batch020-macbook-pilot-historical",
+        "relationship-batch021-platform-index-boundaries",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -613,6 +614,15 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
     assert "127.0.0.1:8018 is current" in cases[
         "relationship-batch020-macbook-pilot-historical"
     ].graph_must_not_contain
+    assert cases["relationship-batch021-platform-index-boundaries"].graph_must_contain == (
+        "Claude Code",
+        "forked subagent",
+        "Codex",
+        "OpenClaw",
+        "agent_end",
+        "OpenCode",
+        "SQLite daemon",
+    )
     assert cases["relationship-platform-cold-start-injection"].graph_must_contain == (
         "Claude Code",
         "SessionStart",
