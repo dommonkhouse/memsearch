@@ -66,6 +66,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-agent-loop-recall-think-remember",
         "relationship-python-api-per-user-isolation",
         "relationship-troubleshooting-reset-rebuild",
+        "relationship-progressive-disclosure-anchor-bridge",
+        "relationship-derived-index-rebuild-safety",
+        "relationship-graphiti-sidecar-cli-routing",
+        "relationship-source-sync-approval-boundaries",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -482,6 +486,43 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "dimension mismatch",
         "embedding provider/model",
     )
+    assert cases["relationship-progressive-disclosure-anchor-bridge"].graph_must_contain == (
+        "L1 search",
+        "L2 expand",
+        "L3 transcript",
+        "session anchors",
+        "transcript path",
+        "original conversation",
+    )
+    assert cases["relationship-derived-index-rebuild-safety"].graph_must_contain == (
+        "Markdown",
+        "source of truth",
+        "Milvus",
+        "derived index",
+        "content-hash dedup",
+        "rebuild",
+    )
+    assert "Milvus is the source of truth" in cases[
+        "relationship-derived-index-rebuild-safety"
+    ].graph_must_not_contain
+    assert cases["relationship-graphiti-sidecar-cli-routing"].graph_must_contain == (
+        "graph-status",
+        "graph-index",
+        "graph-search",
+        "include-graph",
+        "Graphiti",
+        "sidecar",
+        "Markdown remains the source of truth",
+    )
+    assert cases["relationship-source-sync-approval-boundaries"].graph_must_contain == (
+        "Linear",
+        "Manus",
+        "dry-run",
+        "secret scans",
+        "approval",
+        "canonical indexing",
+    )
+    assert "perform silent full export" in cases["relationship-source-sync-approval-boundaries"].graph_must_not_contain
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:
