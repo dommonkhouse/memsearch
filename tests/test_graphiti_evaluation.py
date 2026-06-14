@@ -70,6 +70,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-derived-index-rebuild-safety",
         "relationship-graphiti-sidecar-cli-routing",
         "relationship-source-sync-approval-boundaries",
+        "relationship-graphiti-mcp-route-host-header",
+        "relationship-graphiti-runtime-isolation",
+        "relationship-graphiti-login-supervision-boundary",
+        "relationship-graphiti-rollback-boundary",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -523,6 +527,38 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "canonical indexing",
     )
     assert "perform silent full export" in cases["relationship-source-sync-approval-boundaries"].graph_must_not_contain
+    assert cases["relationship-graphiti-mcp-route-host-header"].graph_must_contain == (
+        "http://dom-kamet.tailf78a36.ts.net:8018/mcp",
+        "Host header",
+        "127.0.0.1:18018",
+        "trailing slash",
+        "DNS-rebinding",
+    )
+    assert "should use /mcp/ with a trailing slash" in cases[
+        "relationship-graphiti-mcp-route-host-header"
+    ].graph_must_not_contain
+    assert cases["relationship-graphiti-runtime-isolation"].graph_must_contain == (
+        "Mac Mini",
+        "dedicated Colima profile",
+        "graphiti-mon316",
+        "/Volumes/SSD/graphiti-mon316",
+        "FalkorDB",
+        "Milvus",
+    )
+    assert cases["relationship-graphiti-login-supervision-boundary"].graph_must_contain == (
+        "LaunchAgent",
+        "reboot-proof operation",
+        "autoLoginUser_missing",
+        "kcpassword_missing",
+        "sudo_unavailable",
+    )
+    assert cases["relationship-graphiti-rollback-boundary"].graph_must_contain == (
+        "stops or removes only",
+        "Markdown memory files",
+        "Milvus data",
+        ".memsearch/memory",
+        "Graphiti manifest",
+    )
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:
