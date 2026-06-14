@@ -92,6 +92,7 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-batch019-mini-mcp-routing",
         "relationship-batch019-mini-login-session-boundary",
         "relationship-batch019-mini-rollback-safety",
+        "relationship-batch020-macbook-pilot-historical",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -603,6 +604,15 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "Milvus",
         "Graphiti manifest",
     )
+    assert cases["relationship-batch020-macbook-pilot-historical"].graph_must_contain == (
+        "historical",
+        "Mac Mini",
+        "Tailscale Serve",
+        "graphiti-falkordb.md",
+    )
+    assert "127.0.0.1:8018 is current" in cases[
+        "relationship-batch020-macbook-pilot-historical"
+    ].graph_must_not_contain
     assert cases["relationship-platform-cold-start-injection"].graph_must_contain == (
         "Claude Code",
         "SessionStart",
