@@ -64,6 +64,11 @@ docker compose \
   -f "$COMPOSE_MINI" \
   up -d
 
+docker update \
+  --restart unless-stopped \
+  "${PROFILE}-falkordb-1" \
+  "${PROFILE}-graphiti-mcp-1" >/dev/null
+
 docker compose \
   -p "$PROFILE" \
   -f "$COMPOSE_BASE" \
