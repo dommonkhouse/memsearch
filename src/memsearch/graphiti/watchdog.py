@@ -65,7 +65,7 @@ def collect_checks() -> list[WatchdogCheck]:
     return [
         _http_check("local_health", "http://127.0.0.1:18018/health"),
         _tailnet_health_check(),
-        _command_check("colima_graphiti_mon316", ["colima", "status", "graphiti-mon316"]),
+        _docker_socket_check(docker_host),
         _docker_compose_check(docker_host),
         _tailscale_serve_check(),
         _ssd_space_check(Path("/Volumes/SSD")),
@@ -152,6 +152,16 @@ def _docker_compose_check(docker_host: str) -> WatchdogCheck:
     names = completed.stdout.lower()
     ok = "graphiti" in names and "falkor" in names
     return WatchdogCheck("compose", ok, completed.stdout.strip() or "no compose services reported")
+
+
+def _docker_socket_check(docker_host: str) -> WatchdogCheck:
+    env = {**os.environ, "DOCKER_HOST": docker_host}
+    try:
+        completed = subprocess.run(["docker", "version"], capture_output=True, check=False, text=True, timeout=30, env=env)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return WatchdogCheck("colima_graphiti_mon316", False, str(exc))
+    output = (completed.stdout or completed.stderr).strip()
+    return WatchdogCheck("colima_graphiti_mon316", completed.returncode == 0, output or f"exit {completed.returncode}")
 
 
 def _tailscale_serve_check() -> WatchdogCheck:
