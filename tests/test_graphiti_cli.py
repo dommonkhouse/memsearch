@@ -310,3 +310,31 @@ def test_search_include_graph_falls_back_to_vector_when_graphiti_fails(monkeypat
     assert payload["vector"][0]["chunk_hash"] == "exact-mon-316"
     assert payload["graph"] == {"facts": [], "nodes": []}
     assert payload["graph_error"] == "sidecar offline"
+
+
+def test_graph_eval_case_filter_runs_only_named_case(monkeypatch, tmp_path):
+    FakeGraphitiClient.instances = []
+    FakeMemSearch.instances = []
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+    monkeypatch.setattr("memsearch.core.MemSearch", FakeMemSearch)
+    monkeypatch.setattr("memsearch.graphiti.client.GraphitiClient", FakeGraphitiClient)
+
+    result = CliRunner().invoke(cli, ["graph-eval", "--case", "exact-mon-316", "--json-output"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["passed"] == 1
+    assert payload["failed"] == 0
+    assert [case["name"] for case in payload["cases"]] == ["exact-mon-316"]
+    assert [call["query"] for call in FakeMemSearch.instances[0].calls if "query" in call] == ["MON-316"]
+
+
+def test_graph_eval_case_filter_rejects_unknown_case(monkeypatch, tmp_path):
+    FakeMemSearch.instances = []
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+    monkeypatch.setattr("memsearch.core.MemSearch", FakeMemSearch)
+
+    result = CliRunner().invoke(cli, ["graph-eval", "--case", "missing-case"])
+
+    assert result.exit_code == 2
+    assert "Unknown graph evaluation case(s): missing-case" in result.stderr
