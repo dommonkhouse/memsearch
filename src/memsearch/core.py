@@ -238,6 +238,7 @@ class MemSearch:
         fetch_k = top_k * 3 if self._reranker_model else top_k
         if exact_identifier:
             fetch_k = max(fetch_k, top_k * 5, 1500)
+            fetch_k = max(fetch_k, int(self._store.count()))
         results = self._store.search(embeddings[0], query_text=query, top_k=fetch_k, filter_expr=filter_expr)
         if self._reranker_model and results:
             from .reranker import rerank
@@ -438,11 +439,15 @@ def _prioritize_exact_identifier_matches(query: str, results: list[dict[str, Any
     needle = query.casefold().strip()
 
     def sort_key(result: dict[str, Any]) -> tuple[int, float]:
-        haystack = " ".join(
-            str(result.get(field, ""))
-            for field in ("heading", "content", "source", "chunk_hash")
-        ).casefold()
-        exact_rank = 0 if needle in haystack else 1
+        exact_rank = 0 if _result_contains_exact_identifier(needle, result) else 1
         return (exact_rank, -float(result.get("score") or 0.0))
 
     return sorted(results, key=sort_key)
+
+
+def _result_contains_exact_identifier(needle: str, result: dict[str, Any]) -> bool:
+    haystack = " ".join(
+        str(result.get(field, ""))
+        for field in ("heading", "content", "source", "chunk_hash")
+    ).casefold()
+    return needle in haystack

@@ -1,6 +1,8 @@
+import asyncio
+
 import pytest
 
-from memsearch.graphiti.client import GraphitiClient, GraphitiClientError
+from memsearch.graphiti.client import GraphitiClient, GraphitiClientError, McpStreamableHttpTransport
 from memsearch.graphiti.episodes import GraphitiEpisode
 
 
@@ -139,3 +141,16 @@ def test_graphiti_error_payload_raises_client_error():
 
     with pytest.raises(GraphitiClientError, match="bad group"):
         client.get_status()
+
+
+def test_streamable_http_transport_bounds_whole_tool_call_timeout():
+    transport = McpStreamableHttpTransport("http://127.0.0.1:8018/mcp", timeout_seconds=0.01)
+
+    async def slow_call(name, arguments):
+        await asyncio.sleep(1)
+        return {}
+
+    transport._call_tool = slow_call
+
+    with pytest.raises(GraphitiClientError, match=r"timed out after 0\.01 seconds"):
+        transport.call_tool("search_memory_facts", {"query": "Graphiti"})

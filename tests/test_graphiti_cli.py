@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from typing import ClassVar
 
 from click.testing import CliRunner
@@ -169,6 +170,27 @@ def test_graph_index_queues_new_episodes_and_writes_manifest(monkeypatch, tmp_pa
     assert "Skipped 1 unchanged episode(s)" in second.output
 
 
+def test_graph_index_locks_manifest_for_real_run(monkeypatch, tmp_path):
+    FakeGraphitiClient.instances = []
+    memory = tmp_path / "memory.md"
+    memory.write_text("### Decision\n\nUse Graphiti with FalkorDB.\n", encoding="utf-8")
+    lock_paths = []
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+    monkeypatch.setattr("memsearch.graphiti.client.GraphitiClient", FakeGraphitiClient)
+
+    @contextmanager
+    def fake_manifest_lock(path):
+        lock_paths.append(path)
+        yield
+
+    monkeypatch.setattr(cli_module, "_graphiti_manifest_lock", fake_manifest_lock)
+
+    result = CliRunner().invoke(cli, ["graph-index", str(memory)])
+
+    assert result.exit_code == 0
+    assert lock_paths == [str(tmp_path / "manifest.json")]
+
+
 def test_graph_index_curated_dry_run_uses_separate_manifest_and_group(monkeypatch, tmp_path):
     linear = tmp_path / ".memsearch" / "memory" / "linear" / "2026-06.md"
     raw = tmp_path / ".memsearch" / "memory" / "2026-06-12.md"
@@ -234,6 +256,42 @@ def test_graph_index_curated_queues_with_cap_and_curated_manifest(monkeypatch, t
     assert "Group: ms_memsearch_active_curated_v1" in result.output
     assert manifest.is_file()
     assert FakeGraphitiClient.instances[0].calls[0][1]["group_id"] == "ms_memsearch_active_curated_v1"
+
+
+def test_graph_index_curated_locks_manifest_for_real_run(monkeypatch, tmp_path):
+    FakeGraphitiClient.instances = []
+    linear = tmp_path / ".memsearch" / "memory" / "linear" / "2026-06.md"
+    manifest = tmp_path / ".memsearch" / "graphiti-curated-manifest.json"
+    linear.parent.mkdir(parents=True, exist_ok=True)
+    linear.write_text(
+        "### MON-316\n\nGraphiti FalkorDB sidecar.\n\n### MON-259\n\nExact vector lookup control.\n",
+        encoding="utf-8",
+    )
+    lock_paths = []
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+    monkeypatch.setattr("memsearch.graphiti.client.GraphitiClient", FakeGraphitiClient)
+
+    @contextmanager
+    def fake_manifest_lock(path):
+        lock_paths.append(path)
+        yield
+
+    monkeypatch.setattr(cli_module, "_graphiti_manifest_lock", fake_manifest_lock)
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "graph-index-curated",
+            str(tmp_path / ".memsearch" / "memory"),
+            "--limit",
+            "1",
+            "--manifest-path",
+            str(manifest),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert lock_paths == [str(manifest)]
 
 
 def test_search_include_graph_preserves_vector_results_and_adds_curated_graph(monkeypatch, tmp_path):
@@ -453,3 +511,31 @@ def test_graph_backup_execute_calls_runner(monkeypatch, tmp_path):
 
     assert result.exit_code == 0
     assert str(backup_path) in result.output
+
+
+def test_graph_eval_case_filter_runs_only_named_case(monkeypatch, tmp_path):
+    FakeGraphitiClient.instances = []
+    FakeMemSearch.instances = []
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+    monkeypatch.setattr("memsearch.core.MemSearch", FakeMemSearch)
+    monkeypatch.setattr("memsearch.graphiti.client.GraphitiClient", FakeGraphitiClient)
+
+    result = CliRunner().invoke(cli, ["graph-eval", "--case", "exact-mon-316", "--json-output"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["passed"] == 1
+    assert payload["failed"] == 0
+    assert [case["name"] for case in payload["cases"]] == ["exact-mon-316"]
+    assert [call["query"] for call in FakeMemSearch.instances[0].calls if "query" in call] == ["MON-316"]
+
+
+def test_graph_eval_case_filter_rejects_unknown_case(monkeypatch, tmp_path):
+    FakeMemSearch.instances = []
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+    monkeypatch.setattr("memsearch.core.MemSearch", FakeMemSearch)
+
+    result = CliRunner().invoke(cli, ["graph-eval", "--case", "missing-case"])
+
+    assert result.exit_code == 2
+    assert "Unknown graph evaluation case(s): missing-case" in result.stderr

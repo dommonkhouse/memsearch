@@ -50,6 +50,50 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-platform-memory-manual-triggers",
         "relationship-platform-memory-transcript-sources",
         "relationship-opencode-openclaw-transcript-difference",
+        "relationship-source-sync-linear-indexing",
+        "relationship-manus-weekly-safety-sequence",
+        "relationship-scheduler-render-approval-gate",
+        "relationship-source-freshness-report-proof",
+        "relationship-alternatives-fit",
+        "relationship-markdown-source-of-truth-design",
+        "relationship-user-workflows-progressive-recall",
+        "relationship-audience-routes-users-developers",
+        "relationship-plugin-summarization-routing",
+        "relationship-platform-plugin-shared-architecture",
+        "relationship-agent-framework-integrations",
+        "relationship-cross-platform-sharing-isolation",
+        "relationship-zero-config-backend-choice",
+        "relationship-agent-loop-recall-think-remember",
+        "relationship-python-api-per-user-isolation",
+        "relationship-troubleshooting-reset-rebuild",
+        "relationship-progressive-disclosure-anchor-bridge",
+        "relationship-derived-index-rebuild-safety",
+        "relationship-graphiti-sidecar-cli-routing",
+        "relationship-source-sync-approval-boundaries",
+        "relationship-graphiti-mcp-route-host-header",
+        "relationship-graphiti-runtime-isolation",
+        "relationship-graphiti-login-supervision-boundary",
+        "relationship-graphiti-rollback-boundary",
+        "relationship-platform-cold-start-injection",
+        "relationship-platform-capture-isolation",
+        "relationship-platform-watch-index-modes",
+        "relationship-opencode-sidecar-boundary",
+        "relationship-claude-status-api-key-troubleshooting",
+        "relationship-claude-watch-recovery-lite-boundary",
+        "relationship-codex-recall-expand-fallback",
+        "relationship-memory-tools-comparison",
+        "relationship-plan-graphiti-sidecar-boundaries",
+        "relationship-plan-kuzu-deferred",
+        "relationship-plan-capped-ingest-rollback",
+        "relationship-plan-chat-backfill-source-normalisation",
+        "relationship-plan-manus-three-lane-recall",
+        "relationship-plan-source-freshness-scheduling",
+        "relationship-batch019-mini-ssd-isolation",
+        "relationship-batch019-mini-mcp-routing",
+        "relationship-batch019-mini-login-session-boundary",
+        "relationship-batch019-mini-rollback-safety",
+        "relationship-batch020-macbook-pilot-historical",
+        "relationship-batch021-platform-index-boundaries",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -127,6 +171,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "index",
     )
     assert "index raw Manus exports" in cases["negative-index-raw-manus-exports"].graph_must_not_contain
+    assert cases["negative-index-raw-manus-exports"].graph_must_contain == (
+        "Raw Manus exports",
+        "must not be indexed",
+    )
     assert cases["relationship-platform-capture-shared-memory"].graph_must_contain == (
         "Claude Code",
         "OpenClaw",
@@ -328,6 +376,378 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "transcript_path",
         "JSONL",
     )
+    assert cases["relationship-source-sync-linear-indexing"].graph_must_contain == (
+        "Linear",
+        "last_success_at",
+        "dry-run previews",
+        "--index",
+        "memsearch_chunks",
+        "scan_path_for_secrets",
+    )
+    assert cases["relationship-manus-weekly-safety-sequence"].graph_must_contain == (
+        "verifying the run",
+        "scanning the raw run",
+        "promoting sanitised Markdown",
+        "Scanning the promoted output",
+        "Generating cards",
+        "scanning the cards",
+        "--index",
+    )
+    assert cases["relationship-scheduler-render-approval-gate"].graph_must_contain == (
+        "scheduler-render",
+        "com.memsearch.daily-linear-sync.plist",
+        "com.memsearch.weekly-manus-sync.plist",
+        ".local/source-sync-logs",
+        "approval",
+        "launchctl",
+    )
+    assert cases["relationship-source-freshness-report-proof"].graph_must_contain == (
+        "state presence",
+        "last success",
+        "last failure",
+        "generated Markdown card counts",
+        "next expected run",
+        "proof-search",
+    )
+    assert cases["relationship-alternatives-fit"].graph_must_contain == (
+        "memsearch",
+        "Claude Code native",
+        "mem0",
+        "Letta",
+        "qmd",
+        "coding CLI",
+        "local markdown search engine",
+    )
+    assert cases["relationship-markdown-source-of-truth-design"].graph_must_contain == (
+        "Markdown",
+        "source of truth",
+        "Milvus",
+        "derived index",
+        "rebuild",
+        "vendor lock-in",
+    )
+    assert cases["relationship-user-workflows-progressive-recall"].graph_must_contain == (
+        "debugging threads",
+        "decision rationale",
+        "feature history",
+        "code archaeology",
+        "L1",
+        "L2",
+        "L3",
+    )
+    assert cases["relationship-audience-routes-users-developers"].graph_must_contain == (
+        "Agent Users",
+        "install a plugin",
+        "Agent Developers",
+        "CLI",
+        "Python API",
+        "zero commands",
+    )
+    assert cases["relationship-plugin-summarization-routing"].graph_must_contain == (
+        "plugin-specific",
+        "native",
+        "llm.providers",
+        "summarize.provider",
+        "llm.model",
+        "do not revert",
+    )
+    assert cases["relationship-platform-plugin-shared-architecture"].graph_must_contain == (
+        "platform plugins",
+        "Plugin capture",
+        "Plugin recall",
+        "L3 transcript",
+        "standard markdown",
+        "Codex CLI",
+        "installer script",
+    )
+    assert cases["relationship-agent-framework-integrations"].graph_must_contain == (
+        "LangChain",
+        "BaseRetriever",
+        "LangGraph",
+        "ReAct agent",
+        "LlamaIndex",
+        "NodeWithScore",
+        "CrewAI",
+        "tool",
+    )
+    assert cases["relationship-cross-platform-sharing-isolation"].graph_must_contain == (
+        "same project directory",
+        "same collection name",
+        "different project directories",
+        "standard markdown",
+        "shared memories",
+        "isolated",
+    )
+    assert cases["relationship-zero-config-backend-choice"].graph_must_contain == (
+        "local embeddings",
+        "no API key",
+        "Milvus Lite",
+        "Milvus Server",
+        "Zilliz Cloud",
+        "production",
+    )
+    assert cases["relationship-agent-loop-recall-think-remember"].graph_must_contain == (
+        "Recall",
+        "Think",
+        "Remember",
+        "daily markdown",
+        "LLM",
+        "re-index",
+    )
+    assert cases["relationship-python-api-per-user-isolation"].graph_must_contain == (
+        "per-user isolation",
+        "paths",
+        "collection",
+        "milvus_uri",
+        "separate database",
+        "never see each other's data",
+    )
+    assert cases["relationship-troubleshooting-reset-rebuild"].graph_must_contain == (
+        "memsearch stats",
+        "memsearch reset --yes",
+        "memsearch index",
+        "source markdown",
+        "dimension mismatch",
+        "embedding provider/model",
+    )
+    assert cases["relationship-progressive-disclosure-anchor-bridge"].graph_must_contain == (
+        "L1 search",
+        "L2 expand",
+        "L3 transcript",
+        "session anchors",
+        "transcript path",
+        "original conversation",
+    )
+    assert cases["relationship-derived-index-rebuild-safety"].graph_must_contain == (
+        "Markdown",
+        "source of truth",
+        "Milvus",
+        "derived index",
+        "content-hash dedup",
+        "rebuild",
+    )
+    assert "Milvus is the source of truth" in cases[
+        "relationship-derived-index-rebuild-safety"
+    ].graph_must_not_contain
+    assert cases["relationship-graphiti-sidecar-cli-routing"].graph_must_contain == (
+        "graph-status",
+        "graph-index",
+        "graph-search",
+        "include-graph",
+        "Graphiti",
+        "sidecar",
+        "Markdown remains the source of truth",
+    )
+    assert cases["relationship-source-sync-approval-boundaries"].graph_must_contain == (
+        "Linear",
+        "Manus",
+        "dry-run",
+        "secret scans",
+        "approval",
+        "canonical indexing",
+    )
+    assert "perform silent full export" in cases["relationship-source-sync-approval-boundaries"].graph_must_not_contain
+    assert cases["relationship-graphiti-mcp-route-host-header"].graph_must_contain == (
+        "http://dom-kamet.tailf78a36.ts.net:8018/mcp",
+        "Host header",
+        "127.0.0.1:18018",
+        "trailing slash",
+        "DNS-rebinding",
+    )
+    assert "should use /mcp/ with a trailing slash" in cases[
+        "relationship-graphiti-mcp-route-host-header"
+    ].graph_must_not_contain
+    assert cases["relationship-graphiti-runtime-isolation"].graph_must_contain == (
+        "Mac Mini",
+        "dedicated Colima profile",
+        "graphiti-mon316",
+        "/Volumes/SSD/graphiti-mon316",
+        "FalkorDB",
+        "Milvus",
+    )
+    assert cases["relationship-graphiti-login-supervision-boundary"].graph_must_contain == (
+        "LaunchAgent",
+        "reboot-proof operation",
+        "autoLoginUser_missing",
+        "kcpassword_missing",
+        "sudo_unavailable",
+    )
+    assert cases["relationship-graphiti-rollback-boundary"].graph_must_contain == (
+        "Graphiti rollback",
+        "Markdown memory files",
+        "Milvus",
+        "Graphiti manifest",
+    )
+    assert cases["relationship-batch019-mini-ssd-isolation"].graph_must_contain == (
+        "Mac Mini",
+        "/Volumes/SSD/graphiti-mon316",
+        "graphiti-mon316",
+        "COLIMA_HOME",
+        "Milvus",
+    )
+    assert cases["relationship-batch019-mini-mcp-routing"].graph_must_contain == (
+        "Tailscale Serve",
+        "http://dom-kamet.tailf78a36.ts.net:8018/mcp",
+        "127.0.0.1:18018",
+        "DNS-rebinding",
+        "trailing slash",
+    )
+    assert cases["relationship-batch019-mini-login-session-boundary"].graph_must_contain == (
+        "LaunchAgent",
+        "reboot-proof",
+        "autoLoginUser_missing",
+        "kcpassword_missing",
+        "sudo_unavailable",
+    )
+    assert cases["relationship-batch019-mini-rollback-safety"].graph_must_contain == (
+        "Graphiti rollback",
+        "Markdown memory files",
+        "Milvus",
+        "Graphiti manifest",
+    )
+    assert cases["relationship-batch020-macbook-pilot-historical"].graph_must_contain == (
+        "historical",
+        "Mac Mini",
+        "Tailscale Serve",
+        "graphiti-falkordb.md",
+    )
+    assert "127.0.0.1:8018 is current" in cases[
+        "relationship-batch020-macbook-pilot-historical"
+    ].graph_must_not_contain
+    assert cases["relationship-batch021-platform-index-boundaries"].graph_must_contain == (
+        "Claude Code",
+        "forked subagent",
+        "Codex",
+        "OpenClaw",
+        "agent_end",
+        "OpenCode",
+        "SQLite daemon",
+    )
+    assert cases["relationship-platform-cold-start-injection"].graph_must_contain == (
+        "Claude Code",
+        "SessionStart",
+        "Codex",
+        "memory file count and date range",
+        "OpenClaw",
+        "before_agent_start",
+        "OpenCode",
+        "system.transform",
+    )
+    assert cases["relationship-platform-capture-isolation"].graph_must_contain == (
+        "Claude Code",
+        "stop_hook_active",
+        "Codex",
+        "features.hooks=false",
+        "OpenClaw",
+        "MEMSEARCH_NO_WATCH",
+        "OpenCode",
+        "XDG_CONFIG_HOME",
+    )
+    assert cases["relationship-platform-watch-index-modes"].graph_must_contain == (
+        "Claude Code",
+        "memsearch watch",
+        "Codex",
+        "Milvus Lite",
+        "one-time index",
+        "OpenClaw",
+        "background",
+        "OpenCode",
+        "capture-daemon.py",
+    )
+    assert cases["relationship-opencode-sidecar-boundary"].graph_must_contain == (
+        "OpenCode SQLite",
+        "source of truth",
+        "markdown",
+        "opencode-turns.db",
+        "derived capture state",
+        "session+turn anchor",
+    )
+    assert "opencode-turns.db is the source of truth" in cases[
+        "relationship-opencode-sidecar-boundary"
+    ].graph_must_not_contain
+    assert cases["relationship-claude-status-api-key-troubleshooting"].graph_must_contain == (
+        "Claude Code",
+        "API key",
+        "memory recording",
+        ".md files",
+        "semantic search",
+        "indexing",
+        "ONNX",
+    )
+    assert cases["relationship-claude-watch-recovery-lite-boundary"].graph_must_contain == (
+        ".memsearch/.watch.pid",
+        "memsearch watch",
+        'pgrep -f "memsearch watch"',
+        "Milvus Lite",
+        "one-time index",
+        "Milvus Server",
+        "Zilliz Cloud",
+    )
+    assert cases["relationship-codex-recall-expand-fallback"].graph_must_contain == (
+        "Codex",
+        "main context",
+        "memsearch expand",
+        "direct file read",
+        "source",
+        "start_line",
+        "end_line",
+    )
+    assert cases["relationship-memory-tools-comparison"].graph_must_contain == (
+        "OpenClaw",
+        "OpenCode",
+        "memory_search",
+        "memory_get",
+        "memory_transcript",
+        "memory-core",
+        "memory-lancedb",
+        "opencode-mem",
+        "dense-only",
+    )
+    assert cases["relationship-plan-graphiti-sidecar-boundaries"].graph_must_contain == (
+        "Graphiti",
+        "optional derived",
+        "Markdown",
+        "canonical",
+        "Milvus",
+        "explicit CLI",
+        "prompt injection",
+    )
+    assert cases["relationship-plan-kuzu-deferred"].graph_must_contain == (
+        "Kuzu",
+        "deferred",
+        "archived",
+        "crash",
+        "FalkorDB",
+        "pilot",
+    )
+    assert cases["relationship-plan-capped-ingest-rollback"].graph_must_contain == (
+        "Graphiti",
+        "dry-run",
+        "rollback",
+        "Graphiti manifest",
+        ".memsearch/memory",
+    )
+    assert cases["relationship-plan-chat-backfill-source-normalisation"].graph_must_contain == (
+        "Markdown",
+        "memsearch index",
+        "Milvus",
+        "derived index",
+    )
+    assert cases["relationship-plan-manus-three-lane-recall"].graph_must_contain == (
+        "Manus card lane",
+        "practical MemSearch indexing source",
+        "Manus raw exports",
+        "not MemSearch-ready",
+        "full cleaned transcripts",
+    )
+    assert cases["relationship-plan-source-freshness-scheduling"].graph_must_contain == (
+        "Linear source sync",
+        "Manus source sync",
+        "weekly run",
+        "dry-run previews",
+        "changed tasks only",
+        "silent full export",
+    )
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:
@@ -376,3 +796,32 @@ def test_evaluate_payload_fails_when_graph_has_unwanted_hits() -> None:
 
     assert result["passed"] is False
     assert result["graph_unwanted_hits"] == ["Graphiti"]
+
+
+def test_evaluate_payload_ignores_graph_relation_metadata_for_unwanted_hits() -> None:
+    case = GraphEvaluationCase(
+        name="negative",
+        kind="negative",
+        query="Why are Manus cards the practical MemSearch indexing source instead of raw exports?",
+        graph_must_contain=("Raw Manus exports", "not be indexed"),
+        graph_must_not_contain=("index raw Manus exports",),
+    )
+
+    result = evaluate_payload(
+        case,
+        {
+            "vector": [],
+            "graph": {
+                "facts": [
+                    {
+                        "name": "MUST_NOT_INDEX",
+                        "fact": "Raw Manus exports must not be indexed.",
+                    }
+                ],
+                "nodes": [],
+            },
+        },
+    )
+
+    assert result["passed"] is True
+    assert result["graph_unwanted_hits"] == []
