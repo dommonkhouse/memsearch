@@ -78,6 +78,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-platform-capture-isolation",
         "relationship-platform-watch-index-modes",
         "relationship-opencode-sidecar-boundary",
+        "relationship-claude-status-api-key-troubleshooting",
+        "relationship-claude-watch-recovery-lite-boundary",
+        "relationship-codex-recall-expand-fallback",
+        "relationship-memory-tools-comparison",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -605,6 +609,44 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
     assert "opencode-turns.db is the source of truth" in cases[
         "relationship-opencode-sidecar-boundary"
     ].graph_must_not_contain
+    assert cases["relationship-claude-status-api-key-troubleshooting"].graph_must_contain == (
+        "Claude Code",
+        "API key",
+        "memory recording",
+        ".md files",
+        "semantic search",
+        "indexing",
+        "ONNX",
+    )
+    assert cases["relationship-claude-watch-recovery-lite-boundary"].graph_must_contain == (
+        ".memsearch/.watch.pid",
+        "memsearch watch",
+        'pgrep -f "memsearch watch"',
+        "Milvus Lite",
+        "one-time index",
+        "Milvus Server",
+        "Zilliz Cloud",
+    )
+    assert cases["relationship-codex-recall-expand-fallback"].graph_must_contain == (
+        "Codex",
+        "main context",
+        "memsearch expand",
+        "direct file read",
+        "source",
+        "start_line",
+        "end_line",
+    )
+    assert cases["relationship-memory-tools-comparison"].graph_must_contain == (
+        "OpenClaw",
+        "OpenCode",
+        "memory_search",
+        "memory_get",
+        "memory_transcript",
+        "memory-core",
+        "memory-lancedb",
+        "opencode-mem",
+        "dense-only",
+    )
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:
