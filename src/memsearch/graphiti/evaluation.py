@@ -710,6 +710,73 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         graph_must_not_contain=("opencode-turns.db is the source of truth",),
     ),
     GraphEvaluationCase(
+        name="relationship-claude-status-api-key-troubleshooting",
+        kind="relationship",
+        query=(
+            "When Claude Code MemSearch has a missing API key, what keeps writing .md files "
+            "and what semantic search or indexing path is disabled?"
+        ),
+        graph_must_contain=(
+            "Claude Code",
+            "API key",
+            "memory recording",
+            ".md files",
+            "semantic search",
+            "indexing",
+            "ONNX",
+        ),
+    ),
+    GraphEvaluationCase(
+        name="relationship-claude-watch-recovery-lite-boundary",
+        kind="relationship",
+        query="How should Claude Code troubleshoot memsearch watch PID recovery and Milvus Lite one-time indexing?",
+        graph_must_contain=(
+            ".memsearch/.watch.pid",
+            "memsearch watch",
+            'pgrep -f "memsearch watch"',
+            "Milvus Lite",
+            "one-time index",
+            "Milvus Server",
+            "Zilliz Cloud",
+        ),
+    ),
+    GraphEvaluationCase(
+        name="relationship-codex-recall-expand-fallback",
+        kind="relationship",
+        query=(
+            "How does Codex L2 use memsearch expand first, then direct file read fallback "
+            "with source, start_line, end_line anchors?"
+        ),
+        graph_must_contain=(
+            "Codex",
+            "main context",
+            "memsearch expand",
+            "direct file read",
+            "source",
+            "start_line",
+            "end_line",
+        ),
+    ),
+    GraphEvaluationCase(
+        name="relationship-memory-tools-comparison",
+        kind="relationship",
+        query=(
+            "How do OpenClaw and OpenCode MemSearch's three tools compare with "
+            "dense-only memory-core, memory-lancedb, and opencode-mem?"
+        ),
+        graph_must_contain=(
+            "OpenClaw",
+            "OpenCode",
+            "memory_search",
+            "memory_get",
+            "memory_transcript",
+            "memory-core",
+            "memory-lancedb",
+            "opencode-mem",
+            "dense-only",
+        ),
+    ),
+    GraphEvaluationCase(
         name="negative-mon-249-performance",
         kind="negative",
         query="MON-249 homepage performance recovery",
