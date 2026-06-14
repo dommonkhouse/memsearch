@@ -6,7 +6,7 @@
   <string>com.monkhouse.graphiti-mon316-tailnet-proxy</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/dominicmonkhouse/Projects/memsearch-mon316-graphiti-mini/bin/start-graphiti-tailnet-forward.sh</string>
+    <string>/Users/dominicmonkhouse/Projects/memsearch/bin/start-graphiti-tailnet-forward.sh</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
