@@ -88,6 +88,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-plan-chat-backfill-source-normalisation",
         "relationship-plan-manus-three-lane-recall",
         "relationship-plan-source-freshness-scheduling",
+        "relationship-batch019-mini-ssd-isolation",
+        "relationship-batch019-mini-mcp-routing",
+        "relationship-batch019-mini-login-session-boundary",
+        "relationship-batch019-mini-rollback-safety",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -567,10 +571,36 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "sudo_unavailable",
     )
     assert cases["relationship-graphiti-rollback-boundary"].graph_must_contain == (
-        "stops or removes only",
+        "Graphiti rollback",
         "Markdown memory files",
-        "Milvus data",
-        ".memsearch/memory",
+        "Milvus",
+        "Graphiti manifest",
+    )
+    assert cases["relationship-batch019-mini-ssd-isolation"].graph_must_contain == (
+        "Mac Mini",
+        "/Volumes/SSD/graphiti-mon316",
+        "graphiti-mon316",
+        "COLIMA_HOME",
+        "Milvus",
+    )
+    assert cases["relationship-batch019-mini-mcp-routing"].graph_must_contain == (
+        "Tailscale Serve",
+        "http://dom-kamet.tailf78a36.ts.net:8018/mcp",
+        "127.0.0.1:18018",
+        "DNS-rebinding",
+        "trailing slash",
+    )
+    assert cases["relationship-batch019-mini-login-session-boundary"].graph_must_contain == (
+        "LaunchAgent",
+        "reboot-proof",
+        "autoLoginUser_missing",
+        "kcpassword_missing",
+        "sudo_unavailable",
+    )
+    assert cases["relationship-batch019-mini-rollback-safety"].graph_must_contain == (
+        "Graphiti rollback",
+        "Markdown memory files",
+        "Milvus",
         "Graphiti manifest",
     )
     assert cases["relationship-platform-cold-start-injection"].graph_must_contain == (
