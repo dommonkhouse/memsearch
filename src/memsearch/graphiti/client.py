@@ -25,7 +25,12 @@ class McpStreamableHttpTransport:
     timeout_seconds: int = 120
 
     def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
-        return asyncio.run(self._call_tool(name, arguments or {}))
+        try:
+            return asyncio.run(asyncio.wait_for(self._call_tool(name, arguments or {}), timeout=self.timeout_seconds))
+        except TimeoutError as exc:
+            raise GraphitiClientError(
+                f"Graphiti MCP tool {name!r} timed out after {self.timeout_seconds} seconds"
+            ) from exc
 
     async def _call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         try:

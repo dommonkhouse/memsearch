@@ -50,6 +50,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-platform-memory-manual-triggers",
         "relationship-platform-memory-transcript-sources",
         "relationship-opencode-openclaw-transcript-difference",
+        "relationship-source-sync-linear-indexing",
+        "relationship-manus-weekly-safety-sequence",
+        "relationship-scheduler-render-approval-gate",
+        "relationship-source-freshness-report-proof",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -127,6 +131,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "index",
     )
     assert "index raw Manus exports" in cases["negative-index-raw-manus-exports"].graph_must_not_contain
+    assert cases["negative-index-raw-manus-exports"].graph_must_contain == (
+        "Raw Manus exports",
+        "must not be indexed",
+    )
     assert cases["relationship-platform-capture-shared-memory"].graph_must_contain == (
         "Claude Code",
         "OpenClaw",
@@ -328,6 +336,39 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "transcript_path",
         "JSONL",
     )
+    assert cases["relationship-source-sync-linear-indexing"].graph_must_contain == (
+        "Linear",
+        "last_success_at",
+        "dry-run previews",
+        "--index",
+        "memsearch_chunks",
+        "scan_path_for_secrets",
+    )
+    assert cases["relationship-manus-weekly-safety-sequence"].graph_must_contain == (
+        "verifying the run",
+        "scanning the raw run",
+        "promoting sanitised Markdown",
+        "Scanning the promoted output",
+        "Generating cards",
+        "scanning the cards",
+        "--index",
+    )
+    assert cases["relationship-scheduler-render-approval-gate"].graph_must_contain == (
+        "scheduler-render",
+        "com.memsearch.daily-linear-sync.plist",
+        "com.memsearch.weekly-manus-sync.plist",
+        ".local/source-sync-logs",
+        "approval",
+        "launchctl",
+    )
+    assert cases["relationship-source-freshness-report-proof"].graph_must_contain == (
+        "state presence",
+        "last success",
+        "last failure",
+        "generated Markdown card counts",
+        "next expected run",
+        "proof-search",
+    )
 
 
 def test_evaluate_payload_checks_vector_graph_and_negative_controls() -> None:
@@ -376,3 +417,32 @@ def test_evaluate_payload_fails_when_graph_has_unwanted_hits() -> None:
 
     assert result["passed"] is False
     assert result["graph_unwanted_hits"] == ["Graphiti"]
+
+
+def test_evaluate_payload_ignores_graph_relation_metadata_for_unwanted_hits() -> None:
+    case = GraphEvaluationCase(
+        name="negative",
+        kind="negative",
+        query="Why are Manus cards the practical MemSearch indexing source instead of raw exports?",
+        graph_must_contain=("Raw Manus exports", "not be indexed"),
+        graph_must_not_contain=("index raw Manus exports",),
+    )
+
+    result = evaluate_payload(
+        case,
+        {
+            "vector": [],
+            "graph": {
+                "facts": [
+                    {
+                        "name": "MUST_NOT_INDEX",
+                        "fact": "Raw Manus exports must not be indexed.",
+                    }
+                ],
+                "nodes": [],
+            },
+        },
+    )
+
+    assert result["passed"] is True
+    assert result["graph_unwanted_hits"] == []

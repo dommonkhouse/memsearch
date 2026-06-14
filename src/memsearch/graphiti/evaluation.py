@@ -331,6 +331,59 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         graph_must_contain=("OpenCode", "SQLite", "session_id", "turn_id", "OpenClaw", "transcript_path", "JSONL"),
     ),
     GraphEvaluationCase(
+        name="relationship-source-sync-linear-indexing",
+        kind="relationship",
+        query="How does source-sync linear use last_success_at dry-run and optional indexing?",
+        graph_must_contain=(
+            "Linear",
+            "last_success_at",
+            "dry-run previews",
+            "--index",
+            "memsearch_chunks",
+            "scan_path_for_secrets",
+        ),
+    ),
+    GraphEvaluationCase(
+        name="relationship-manus-weekly-safety-sequence",
+        kind="relationship",
+        query="What gates happen before Manus cards can be indexed into MemSearch?",
+        graph_must_contain=(
+            "verifying the run",
+            "scanning the raw run",
+            "promoting sanitised Markdown",
+            "Scanning the promoted output",
+            "Generating cards",
+            "scanning the cards",
+            "--index",
+        ),
+    ),
+    GraphEvaluationCase(
+        name="relationship-scheduler-render-approval-gate",
+        kind="relationship",
+        query="What does scheduler-render create and why does it not install LaunchAgents automatically?",
+        graph_must_contain=(
+            "scheduler-render",
+            "com.memsearch.daily-linear-sync.plist",
+            "com.memsearch.weekly-manus-sync.plist",
+            ".local/source-sync-logs",
+            "approval",
+            "launchctl",
+        ),
+    ),
+    GraphEvaluationCase(
+        name="relationship-source-freshness-report-proof",
+        kind="relationship",
+        query="What does source-freshness report and how do proof searches work?",
+        graph_must_contain=(
+            "state presence",
+            "last success",
+            "last failure",
+            "generated Markdown card counts",
+            "next expected run",
+            "proof-search",
+        ),
+    ),
+    GraphEvaluationCase(
         name="negative-mon-249-performance",
         kind="negative",
         query="MON-249 homepage performance recovery",
@@ -385,7 +438,7 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         name="negative-index-raw-manus-exports",
         kind="negative",
         query="Should MemSearch index raw Manus exports directly?",
-        graph_must_contain=("Manus raw exports", "not MemSearch-ready"),
+        graph_must_contain=("Raw Manus exports", "must not be indexed"),
         graph_must_not_contain=("index raw Manus exports", "raw Manus exports should be indexed"),
     ),
 )
@@ -394,7 +447,7 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
 def evaluate_payload(case: GraphEvaluationCase, payload: dict[str, Any]) -> dict[str, Any]:
     """Evaluate one vector+graph payload against a lightweight control case."""
     vector_text = _stringify(payload.get("vector", []))
-    graph_text = _stringify(payload.get("graph", {}))
+    graph_text = _stringify_graph(payload.get("graph", {}))
     vector_hits = _hits(vector_text, case.vector_must_contain)
     graph_hits = _hits(graph_text, case.graph_must_contain)
     graph_unwanted_hits = _hits(graph_text, case.graph_must_not_contain)
@@ -429,3 +482,19 @@ def _stringify(value: Any) -> str:
     if isinstance(value, list):
         return " ".join(_stringify(item) for item in value)
     return str(value)
+
+
+def _stringify_graph(value: Any) -> str:
+    if not isinstance(value, dict):
+        return _stringify(value)
+    facts = value.get("facts", [])
+    nodes = value.get("nodes", [])
+    parts: list[str] = []
+    if isinstance(facts, list):
+        parts.extend(str(fact.get("fact", "")) for fact in facts if isinstance(fact, dict))
+    if isinstance(nodes, list):
+        for node in nodes:
+            if isinstance(node, dict):
+                parts.append(str(node.get("name", "")))
+                parts.append(str(node.get("summary", "")))
+    return " ".join(parts)
