@@ -62,6 +62,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-platform-plugin-shared-architecture",
         "relationship-agent-framework-integrations",
         "relationship-cross-platform-sharing-isolation",
+        "relationship-zero-config-backend-choice",
+        "relationship-agent-loop-recall-think-remember",
+        "relationship-python-api-per-user-isolation",
+        "relationship-troubleshooting-reset-rebuild",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -445,6 +449,38 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "standard markdown",
         "shared memories",
         "isolated",
+    )
+    assert cases["relationship-zero-config-backend-choice"].graph_must_contain == (
+        "local embeddings",
+        "no API key",
+        "Milvus Lite",
+        "Milvus Server",
+        "Zilliz Cloud",
+        "production",
+    )
+    assert cases["relationship-agent-loop-recall-think-remember"].graph_must_contain == (
+        "Recall",
+        "Think",
+        "Remember",
+        "daily markdown",
+        "LLM",
+        "re-index",
+    )
+    assert cases["relationship-python-api-per-user-isolation"].graph_must_contain == (
+        "per-user isolation",
+        "paths",
+        "collection",
+        "milvus_uri",
+        "separate database",
+        "never see each other's data",
+    )
+    assert cases["relationship-troubleshooting-reset-rebuild"].graph_must_contain == (
+        "memsearch stats",
+        "memsearch reset --yes",
+        "memsearch index",
+        "source markdown",
+        "dimension mismatch",
+        "embedding provider/model",
     )
 
 
