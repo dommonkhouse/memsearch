@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -23,6 +24,11 @@ from .config import (
     set_config_value,
 )
 from .io import read_utf8_text_replace
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 
 try:
     from pymilvus.exceptions import MilvusException
@@ -158,6 +164,21 @@ def _save_graphiti_manifest(path: str, data: dict) -> None:
     manifest_path = Path(path).expanduser()
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+@contextmanager
+def _graphiti_manifest_lock(path: str):
+    manifest_path = Path(path).expanduser()
+    lock_path = manifest_path.with_suffix(manifest_path.suffix + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("w", encoding="utf-8") as lock_file:
+        if fcntl is not None:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _normalize_compact_source(source: str | None) -> str | None:
@@ -617,14 +638,14 @@ def graph_index(
 
     cfg = _safe_resolve_config()
     files = scan_paths(list(paths))
-    manifest = _load_graphiti_manifest(cfg.graphiti.manifest_path)
-    seen = manifest["episodes"]
     episodes = list(build_episodes(file.path for file in files))
-    pending = [episode for episode in episodes if force or episode.content_hash not in seen]
-    if limit is not None:
-        pending = pending[:limit]
 
     if dry_run:
+        manifest = _load_graphiti_manifest(cfg.graphiti.manifest_path)
+        seen = manifest["episodes"]
+        pending = [episode for episode in episodes if force or episode.content_hash not in seen]
+        if limit is not None:
+            pending = pending[:limit]
         click.echo(f"Found {len(files)} markdown files, {len(episodes)} episodes, {len(pending)} pending.")
         return
 
@@ -636,23 +657,29 @@ def graph_index(
     )
     effective_group_id = group_id if group_id is not None else cfg.graphiti.group_id
     queued = 0
-    try:
-        for episode in pending:
-            client.add_memory(episode, group_id=effective_group_id)
-            seen[episode.content_hash] = {
-                "name": episode.name,
-                "source": episode.metadata.get("source", ""),
-                "group_id": effective_group_id,
-                "queued_at": datetime.now(UTC).isoformat(),
-            }
-            queued += 1
-    except GraphitiClientError as e:
-        _save_graphiti_manifest(cfg.graphiti.manifest_path, manifest)
-        click.echo(f"Graphiti error after queuing {queued} episode(s): {e}", err=True)
-        raise SystemExit(1) from None
+    with _graphiti_manifest_lock(cfg.graphiti.manifest_path):
+        manifest = _load_graphiti_manifest(cfg.graphiti.manifest_path)
+        seen = manifest["episodes"]
+        pending = [episode for episode in episodes if force or episode.content_hash not in seen]
+        if limit is not None:
+            pending = pending[:limit]
+        try:
+            for episode in pending:
+                client.add_memory(episode, group_id=effective_group_id)
+                seen[episode.content_hash] = {
+                    "name": episode.name,
+                    "source": episode.metadata.get("source", ""),
+                    "group_id": effective_group_id,
+                    "queued_at": datetime.now(UTC).isoformat(),
+                }
+                queued += 1
+        except GraphitiClientError as e:
+            _save_graphiti_manifest(cfg.graphiti.manifest_path, manifest)
+            click.echo(f"Graphiti error after queuing {queued} episode(s): {e}", err=True)
+            raise SystemExit(1) from None
 
-    _save_graphiti_manifest(cfg.graphiti.manifest_path, manifest)
-    skipped = len(episodes) - len(pending) if not force else 0
+        _save_graphiti_manifest(cfg.graphiti.manifest_path, manifest)
+        skipped = len(episodes) - len(pending) if not force else 0
     click.echo(f"Queued {queued} Graphiti episode(s). Skipped {skipped} unchanged episode(s).")
 
 
@@ -690,14 +717,14 @@ def graph_index_curated(
     files = scan_paths(list(paths))
     episodes, selection = build_curated_episodes(file.path for file in files)
     effective_manifest_path = manifest_path or CURATED_MANIFEST_PATH
-    manifest = _load_graphiti_manifest(effective_manifest_path)
-    seen = manifest["episodes"]
-    uncapped_pending = [episode for episode in episodes if force or episode.content_hash not in seen]
-    pending = uncapped_pending
-    if limit is not None:
-        pending = pending[:limit]
 
     if dry_run:
+        manifest = _load_graphiti_manifest(effective_manifest_path)
+        seen = manifest["episodes"]
+        uncapped_pending = [episode for episode in episodes if force or episode.content_hash not in seen]
+        pending = uncapped_pending
+        if limit is not None:
+            pending = pending[:limit]
         click.echo(
             "Curated Graphiti dry-run: "
             f"{len(files)} scanned, {len(selection.selected)} selected, {len(selection.excluded)} excluded, "
@@ -715,24 +742,31 @@ def graph_index_curated(
     )
     effective_group_id = group_id if group_id is not None else CURATED_GROUP_ID
     queued = 0
-    try:
-        for episode in pending:
-            client.add_memory(episode, group_id=effective_group_id)
-            seen[episode.content_hash] = {
-                "name": episode.name,
-                "source": episode.metadata.get("source", ""),
-                "group_id": effective_group_id,
-                "queued_at": datetime.now(UTC).isoformat(),
-            }
-            queued += 1
-    except GraphitiClientError as e:
-        _save_graphiti_manifest(effective_manifest_path, manifest)
-        click.echo(f"Graphiti error after queuing {queued} curated episode(s): {e}", err=True)
-        raise SystemExit(1) from None
+    with _graphiti_manifest_lock(effective_manifest_path):
+        manifest = _load_graphiti_manifest(effective_manifest_path)
+        seen = manifest["episodes"]
+        uncapped_pending = [episode for episode in episodes if force or episode.content_hash not in seen]
+        pending = uncapped_pending
+        if limit is not None:
+            pending = pending[:limit]
+        try:
+            for episode in pending:
+                client.add_memory(episode, group_id=effective_group_id)
+                seen[episode.content_hash] = {
+                    "name": episode.name,
+                    "source": episode.metadata.get("source", ""),
+                    "group_id": effective_group_id,
+                    "queued_at": datetime.now(UTC).isoformat(),
+                }
+                queued += 1
+        except GraphitiClientError as e:
+            _save_graphiti_manifest(effective_manifest_path, manifest)
+            click.echo(f"Graphiti error after queuing {queued} curated episode(s): {e}", err=True)
+            raise SystemExit(1) from None
 
-    _save_graphiti_manifest(effective_manifest_path, manifest)
-    skipped = len(episodes) - len(uncapped_pending) if not force else 0
-    deferred = len(uncapped_pending) - len(pending)
+        _save_graphiti_manifest(effective_manifest_path, manifest)
+        skipped = len(episodes) - len(uncapped_pending) if not force else 0
+        deferred = len(uncapped_pending) - len(pending)
     summary = f"Queued {queued} curated Graphiti episode(s). Skipped {skipped} unchanged episode(s)."
     if deferred:
         summary += f" Deferred {deferred} episode(s) by limit."
