@@ -51,12 +51,6 @@ if [[ "$DOCKER_HOST" == *"/.colima/default/docker.sock"* ]]; then
   exit 1
 fi
 
-if ! docker context inspect colima >/dev/null 2>&1; then
-  echo "Default Colima Docker context missing; continuing with DOCKER_HOST=$DOCKER_HOST"
-else
-  docker context use colima >/dev/null 2>&1 || true
-fi
-
 docker version >/dev/null
 docker compose \
   -p "$PROFILE" \
