@@ -4,10 +4,17 @@ set -euo pipefail
 REPO_ROOT="/Users/dominicmonkhouse/Projects/memsearch"
 LOG_DIR="/Volumes/SSD/graphiti-mon316/logs"
 BACKUP_ROOT="/Volumes/SSD/graphiti-mon316/backups"
+FALLBACK_LOG_DIR="$HOME/Library/Logs/graphiti-mon316"
+FALLBACK_BACKUP_ROOT="$HOME/Library/Application Support/graphiti-mon316/backups"
 COLIMA_PROFILE="graphiti-mon316"
 COLIMA_HOME="${COLIMA_HOME:-/Volumes/SSD/graphiti-mon316/colima-home}"
 DOCKER_SOCK="$COLIMA_HOME/$COLIMA_PROFILE/docker.sock"
 PATH="/opt/homebrew/bin:/usr/local/bin:/Users/dominicmonkhouse/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+if ! mkdir -p "$LOG_DIR" "$BACKUP_ROOT" 2>/dev/null || [ ! -w "$LOG_DIR" ] || [ ! -w "$BACKUP_ROOT" ]; then
+  LOG_DIR="$FALLBACK_LOG_DIR"
+  BACKUP_ROOT="$FALLBACK_BACKUP_ROOT"
+fi
 
 mkdir -p "$LOG_DIR" "$BACKUP_ROOT"
 cd "$REPO_ROOT"

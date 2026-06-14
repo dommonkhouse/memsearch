@@ -3,12 +3,17 @@ set -euo pipefail
 
 REPO_ROOT="/Users/dominicmonkhouse/Projects/memsearch"
 LOG_DIR="/Volumes/SSD/graphiti-mon316/logs"
+FALLBACK_LOG_DIR="$HOME/Library/Logs/graphiti-mon316"
 TODAY="$(date '+%Y-%m-%d')"
 OUTPUT_DIR="$REPO_ROOT/outputs/$TODAY"
 CURATED_SEEDS_DIR="${CURATED_SEEDS_DIR:-$REPO_ROOT/docs/graphiti-curated-seeds}"
 CLAUDE_MEMORY_DIR="${CLAUDE_MEMORY_DIR:-/Users/dominicmonkhouse/Projects/claude-config/memory}"
 LINEAR_MEMORY_DIR="${LINEAR_MEMORY_DIR:-/Users/dominicmonkhouse/Projects/.memsearch/memory/linear}"
 PATH="/opt/homebrew/bin:/usr/local/bin:/Users/dominicmonkhouse/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+if ! mkdir -p "$LOG_DIR" 2>/dev/null || [ ! -w "$LOG_DIR" ]; then
+  LOG_DIR="$FALLBACK_LOG_DIR"
+fi
 
 mkdir -p "$LOG_DIR" "$OUTPUT_DIR"
 cd "$REPO_ROOT"

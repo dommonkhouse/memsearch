@@ -11,7 +11,7 @@ COLIMA_HOME="${COLIMA_HOME:-/Volumes/SSD/graphiti-mon316/colima-home}"
 DOCKER_SOCK="$COLIMA_HOME/$COLIMA_PROFILE/docker.sock"
 PATH="/opt/homebrew/bin:/usr/local/bin:/Users/dominicmonkhouse/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-if [ ! -d /Volumes/SSD ]; then
+if ! mkdir -p "$LOG_DIR" "$STATE_DIR" 2>/dev/null || [ ! -w "$LOG_DIR" ] || [ ! -w "$STATE_DIR" ]; then
   LOG_DIR="$FALLBACK_LOG_DIR"
   STATE_DIR="$FALLBACK_STATE_DIR"
 fi
