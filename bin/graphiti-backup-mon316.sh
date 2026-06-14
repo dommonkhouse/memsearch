@@ -11,7 +11,7 @@ COLIMA_HOME="${COLIMA_HOME:-/Volumes/SSD/graphiti-mon316/colima-home}"
 DOCKER_SOCK="$COLIMA_HOME/$COLIMA_PROFILE/docker.sock"
 PATH="/opt/homebrew/bin:/usr/local/bin:/Users/dominicmonkhouse/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-if ! mkdir -p "$LOG_DIR" "$BACKUP_ROOT" 2>/dev/null || [ ! -w "$LOG_DIR" ] || [ ! -w "$BACKUP_ROOT" ]; then
+if ! (mkdir -p "$LOG_DIR" "$BACKUP_ROOT" && : >"$LOG_DIR/.write-test" && : >"$BACKUP_ROOT/.write-test" && rm -f "$LOG_DIR/.write-test" "$BACKUP_ROOT/.write-test") 2>/dev/null; then
   LOG_DIR="$FALLBACK_LOG_DIR"
   BACKUP_ROOT="$FALLBACK_BACKUP_ROOT"
 fi

@@ -11,7 +11,7 @@ CLAUDE_MEMORY_DIR="${CLAUDE_MEMORY_DIR:-/Users/dominicmonkhouse/Projects/claude-
 LINEAR_MEMORY_DIR="${LINEAR_MEMORY_DIR:-/Users/dominicmonkhouse/Projects/.memsearch/memory/linear}"
 PATH="/opt/homebrew/bin:/usr/local/bin:/Users/dominicmonkhouse/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-if ! mkdir -p "$LOG_DIR" 2>/dev/null || [ ! -w "$LOG_DIR" ]; then
+if ! (mkdir -p "$LOG_DIR" && : >"$LOG_DIR/.write-test" && rm -f "$LOG_DIR/.write-test") 2>/dev/null; then
   LOG_DIR="$FALLBACK_LOG_DIR"
 fi
 
