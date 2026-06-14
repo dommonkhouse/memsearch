@@ -58,6 +58,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-markdown-source-of-truth-design",
         "relationship-user-workflows-progressive-recall",
         "relationship-audience-routes-users-developers",
+        "relationship-plugin-summarization-routing",
+        "relationship-platform-plugin-shared-architecture",
+        "relationship-agent-framework-integrations",
+        "relationship-cross-platform-sharing-isolation",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -406,6 +410,41 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "CLI",
         "Python API",
         "zero commands",
+    )
+    assert cases["relationship-plugin-summarization-routing"].graph_must_contain == (
+        "plugin-specific",
+        "native",
+        "llm.providers",
+        "summarize.provider",
+        "llm.model",
+        "do not revert",
+    )
+    assert cases["relationship-platform-plugin-shared-architecture"].graph_must_contain == (
+        "platform plugins",
+        "Plugin capture",
+        "Plugin recall",
+        "L3 transcript",
+        "standard markdown",
+        "Codex CLI",
+        "installer script",
+    )
+    assert cases["relationship-agent-framework-integrations"].graph_must_contain == (
+        "LangChain",
+        "BaseRetriever",
+        "LangGraph",
+        "ReAct agent",
+        "LlamaIndex",
+        "NodeWithScore",
+        "CrewAI",
+        "tool",
+    )
+    assert cases["relationship-cross-platform-sharing-isolation"].graph_must_contain == (
+        "same project directory",
+        "same collection name",
+        "different project directories",
+        "standard markdown",
+        "shared memories",
+        "isolated",
     )
 
 
