@@ -82,6 +82,12 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-claude-watch-recovery-lite-boundary",
         "relationship-codex-recall-expand-fallback",
         "relationship-memory-tools-comparison",
+        "relationship-plan-graphiti-sidecar-boundaries",
+        "relationship-plan-kuzu-deferred",
+        "relationship-plan-capped-ingest-rollback",
+        "relationship-plan-chat-backfill-source-normalisation",
+        "relationship-plan-manus-three-lane-recall",
+        "relationship-plan-source-freshness-scheduling",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -646,6 +652,51 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "memory-lancedb",
         "opencode-mem",
         "dense-only",
+    )
+    assert cases["relationship-plan-graphiti-sidecar-boundaries"].graph_must_contain == (
+        "Graphiti",
+        "optional derived",
+        "Markdown",
+        "canonical",
+        "Milvus",
+        "explicit CLI",
+        "prompt injection",
+    )
+    assert cases["relationship-plan-kuzu-deferred"].graph_must_contain == (
+        "Kuzu",
+        "deferred",
+        "archived",
+        "crash",
+        "FalkorDB",
+        "pilot",
+    )
+    assert cases["relationship-plan-capped-ingest-rollback"].graph_must_contain == (
+        "Graphiti",
+        "dry-run",
+        "rollback",
+        "Graphiti manifest",
+        ".memsearch/memory",
+    )
+    assert cases["relationship-plan-chat-backfill-source-normalisation"].graph_must_contain == (
+        "Markdown",
+        "memsearch index",
+        "Milvus",
+        "derived index",
+    )
+    assert cases["relationship-plan-manus-three-lane-recall"].graph_must_contain == (
+        "Manus card lane",
+        "practical MemSearch indexing source",
+        "Manus raw exports",
+        "not MemSearch-ready",
+        "full cleaned transcripts",
+    )
+    assert cases["relationship-plan-source-freshness-scheduling"].graph_must_contain == (
+        "Linear source sync",
+        "Manus source sync",
+        "weekly run",
+        "dry-run previews",
+        "changed tasks only",
+        "silent full export",
     )
 
 
