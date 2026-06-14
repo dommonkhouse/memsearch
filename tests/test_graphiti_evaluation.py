@@ -54,6 +54,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-manus-weekly-safety-sequence",
         "relationship-scheduler-render-approval-gate",
         "relationship-source-freshness-report-proof",
+        "relationship-alternatives-fit",
+        "relationship-markdown-source-of-truth-design",
+        "relationship-user-workflows-progressive-recall",
+        "relationship-audience-routes-users-developers",
     }
     assert cases["relationship-mac-mini-current-route"].graph_must_contain == (
         "dom-kamet.tailf78a36.ts.net",
@@ -368,6 +372,40 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "generated Markdown card counts",
         "next expected run",
         "proof-search",
+    )
+    assert cases["relationship-alternatives-fit"].graph_must_contain == (
+        "memsearch",
+        "Claude Code native",
+        "mem0",
+        "Letta",
+        "qmd",
+        "coding CLI",
+        "local markdown search engine",
+    )
+    assert cases["relationship-markdown-source-of-truth-design"].graph_must_contain == (
+        "Markdown",
+        "source of truth",
+        "Milvus",
+        "derived index",
+        "rebuild",
+        "vendor lock-in",
+    )
+    assert cases["relationship-user-workflows-progressive-recall"].graph_must_contain == (
+        "debugging threads",
+        "decision rationale",
+        "feature history",
+        "code archaeology",
+        "L1",
+        "L2",
+        "L3",
+    )
+    assert cases["relationship-audience-routes-users-developers"].graph_must_contain == (
+        "Agent Users",
+        "install a plugin",
+        "Agent Developers",
+        "CLI",
+        "Python API",
+        "zero commands",
     )
 
 

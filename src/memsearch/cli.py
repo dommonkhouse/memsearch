@@ -514,6 +514,7 @@ def graph_search(
 @click.option("--endpoint", default=None, help="Graphiti MCP endpoint.")
 @click.option("--host-header", default=None, help="Override Host header for localhost-protected Graphiti MCP routes.")
 @click.option("--timeout", "timeout_seconds", default=None, type=int, help="Graph timeout in seconds.")
+@click.option("--case", "case_names", multiple=True, help="Run only the named evaluation case. May be repeated.")
 @click.option("--json-output", "-j", is_flag=True, help="Output as JSON.")
 def graph_eval(
     top_k: int,
@@ -521,6 +522,7 @@ def graph_eval(
     endpoint: str | None,
     host_header: str | None,
     timeout_seconds: int | None,
+    case_names: tuple[str, ...],
     json_output: bool,
 ) -> None:
     """Run a small vector-vs-graph recall evaluation harness."""
@@ -541,7 +543,16 @@ def graph_eval(
             timeout_seconds=timeout_seconds,
         )
         effective_group_id = group_id if group_id is not None else CURATED_GROUP_ID
-        for case in DEFAULT_GRAPH_EVALUATION_CASES:
+        cases = DEFAULT_GRAPH_EVALUATION_CASES
+        if case_names:
+            wanted = set(case_names)
+            cases = tuple(case for case in cases if case.name in wanted)
+            missing = sorted(wanted - {case.name for case in cases})
+            if missing:
+                click.echo(f"Unknown graph evaluation case(s): {', '.join(missing)}", err=True)
+                raise SystemExit(2)
+
+        for case in cases:
             vector_results = _run(ms.search(case.query, top_k=top_k))
             payload: dict = {"vector": vector_results, "graph": {"facts": [], "nodes": []}}
             try:
