@@ -1,6 +1,7 @@
 services:
   falkordb:
     image: falkordb/falkordb:latest
+    restart: unless-stopped
     environment:
       FALKORDB_PASSWORD: ${FALKORDB_PASSWORD:-}
       BROWSER: "0"
@@ -15,6 +16,7 @@ services:
 
   graphiti-mcp:
     image: zepai/knowledge-graph-mcp:standalone
+    restart: unless-stopped
     depends_on:
       falkordb:
         condition: service_healthy

@@ -98,6 +98,16 @@ To run proof searches:
 uv run python -m memsearch.backfill.cli source-freshness --run-proof
 ```
 
+## Daily proof job
+
+After the 06:30 Linear sync, `com.memsearch.source-freshness-proof` runs at 06:45 and executes:
+
+```bash
+uv run python -m memsearch.backfill.cli source-freshness --run-proof
+```
+
+The job writes logs to `/Volumes/SSD/graphiti-mon316/logs/source-freshness-proof.log` on the Mini.
+
 ## Scheduler rendering
 
 ```bash
@@ -109,6 +119,15 @@ This writes:
 ```text
 .local/launchagents/com.memsearch.daily-linear-sync.plist
 .local/launchagents/com.memsearch.weekly-manus-sync.plist
+```
+
+On Dominic's Mac Mini it also renders:
+
+```text
+.local/launchagents/com.monkhouse.graphiti-mon316-watchdog.plist
+.local/launchagents/com.monkhouse.graphiti-mon316-backup.plist
+.local/launchagents/com.memsearch.source-freshness-proof.plist
+.local/launchagents/com.memsearch.graphiti-candidate-report.plist
 ```
 
 It also writes logs under:

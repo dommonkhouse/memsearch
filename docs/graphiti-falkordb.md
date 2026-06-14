@@ -41,7 +41,7 @@ Do not use `/mcp/` with a trailing slash. The server redirects `/mcp/` to `/mcp`
 
 ## Runtime files
 
-- Repo checkout on Mini: `~/Projects/memsearch-mon316-graphiti-mini`.
+- Repo checkout on Mini: `~/Projects/memsearch`.
 - Dedicated Colima home: `/Volumes/SSD/graphiti-mon316/colima-home`.
 - Logs: `/Volumes/SSD/graphiti-mon316/logs`.
 - Secrets: `~/.secrets/graphiti.env`.
@@ -80,7 +80,7 @@ memsearch graph-search "what changed about Kuzu" --group-id ms_memsearch_ae2d4f9
 Start or reconcile Graphiti on the Mini:
 
 ```bash
-~/Projects/memsearch-mon316-graphiti-mini/bin/start-graphiti-mon316.sh
+~/Projects/memsearch/bin/start-graphiti-mon316.sh
 ```
 
 Verify the MCP client from the Mini:
@@ -105,14 +105,66 @@ PY
 Stop only Graphiti containers, leaving volumes and Milvus untouched:
 
 ```bash
-~/Projects/memsearch-mon316-graphiti-mini/bin/stop-graphiti-mon316.sh
+~/Projects/memsearch/bin/stop-graphiti-mon316.sh
 ```
 
 Stop the dedicated Graphiti Colima profile too:
 
 ```bash
-~/Projects/memsearch-mon316-graphiti-mini/bin/stop-graphiti-mon316.sh --stop-colima
+~/Projects/memsearch/bin/stop-graphiti-mon316.sh --stop-colima
 ```
+
+## Curated freshness workflow
+
+Graphiti freshness is candidate-first. The weekly candidate job writes a report under `outputs/YYYY-MM-DD/` and does not mutate Graphiti. Approved batches are ingested manually with `graph-index-curated --dry-run` followed by a capped real run.
+
+Only `current` statements with explicit evidence are eligible for human review as seed candidates. Historical, superseded, unsafe, raw transcript, raw Manus export, full `.memsearch/memory`, stale route, and troubleshooting symptom sources stay out of ingest-ready output by default.
+
+## Runtime automation
+
+The Mini automation is user-session supervised. It is not reboot-without-login guaranteed until a separate admin-level power/login plan is approved and tested.
+
+Rendered LaunchAgents:
+
+- `com.monkhouse.graphiti-mon316-watchdog`: runs `bin/graphiti-watchdog-mon316.sh` every 300 seconds and at load.
+- `com.monkhouse.graphiti-mon316-backup`: runs `bin/graphiti-backup-mon316.sh` daily at 03:15.
+- `com.memsearch.source-freshness-proof`: runs `bin/graphiti-source-freshness-proof-mon316.sh` daily at 06:45.
+- `com.memsearch.graphiti-candidate-report`: runs `bin/graphiti-candidate-report-mon316.sh` Monday at 07:00.
+
+The watchdog uses the dedicated `graphiti-mon316` Colima socket when present and only runs the narrow recovery commands returned by `memsearch graph-watchdog`. It refuses commands that mention Milvus, destructive Compose volume removal, or Docker volume deletion.
+
+## Backup and restore drill
+
+Nightly backups use `memsearch graph-backup --execute --backup-root /Volumes/SSD/graphiti-mon316/backups --retain-days 30 --prune-to-trash`.
+
+The backup sequence is:
+
+1. Run a FalkorDB/Redis snapshot command inside `graphiti-mon316-falkordb-1`.
+2. Copy `/var/lib/falkordb/data` from the container into a dated backup directory.
+3. Write `metadata.json` with the timestamp, container name, volume name, and data path.
+4. After a successful new backup, move old dated backup directories to `~/.Trash/graphiti-mon316-backups/` according to retention.
+
+Restore drills must use a temporary non-production graph group or separate project. Do not clear the production curated group unless the rollback procedure below is being executed.
+
+Evidence to save after a drill:
+
+- backup directory path;
+- `metadata.json`;
+- restore target group or project;
+- `graph-status` output;
+- `graph-eval --json-output` output.
+
+## Approved capped ingest runbook
+
+1. Run `uv run memsearch graph-status`.
+2. Run `uv run memsearch graph-eval --json-output`.
+3. Copy `.memsearch/graphiti-curated-manifest.json` to `.memsearch/manifest-checkpoints/`.
+4. Run `uv run memsearch graph-index-curated <approved-seed-file> --dry-run`.
+5. Confirm selected, excluded, episode, and pending counts match the approved batch.
+6. Run `uv run memsearch graph-index-curated <approved-seed-file> --limit <N>`.
+7. Poll `uv run memsearch graph-eval --json-output` until pass or bounded failure.
+8. Run practical negative-control searches.
+9. Update Linear with source file, manifest count, eval result, and keep/remove decision.
 
 ## Rollback
 
@@ -121,3 +173,22 @@ Stop or remove only the Graphiti/FalkorDB runtime. Do not delete Markdown memory
 The derived Graphiti manifest can be left in `.memsearch/graphiti-manifest.json`; `.memsearch/` is already ignored by git.
 
 The runtime is currently login-session supervised, not reboot-without-login guaranteed. Reboot-proof operation remains blocked until the Mini has an approved admin-level power/login setup.
+
+For curated ingest rollback:
+
+1. Save the failing graph-search or graph-eval output.
+2. Clear only `ms_memsearch_active_curated_v1` with the guarded command:
+
+```bash
+uv run memsearch graph-clear-group \
+  --group-id ms_memsearch_active_curated_v1 \
+  --confirm-group-id ms_memsearch_active_curated_v1 \
+  --execute
+```
+
+3. Restore `.memsearch/graphiti-curated-manifest.json` from the pre-batch checkpoint.
+4. Rebuild from known-good seed files only.
+5. Re-run `uv run memsearch graph-eval --json-output`.
+6. Record the rejected batch and recovery evidence in Linear.
+
+Never run destructive Compose volume-removal commands as a Graphiti rollback shortcut.

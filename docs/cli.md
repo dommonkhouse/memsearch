@@ -20,8 +20,13 @@ Commands:
   config      Manage memsearch configuration.
   expand      Expand a memory chunk to show full context.
   graph-index Index markdown files into Graphiti as episodes.
+  graph-backup Create a non-destructive FalkorDB backup for Graphiti.
+  graph-candidate-report Write a non-mutating Graphiti candidate report.
+  graph-clear-group Clear one explicitly confirmed Graphiti group.
+  graph-eval Run vector-vs-graph recall evaluation.
   graph-search Search Graphiti facts and nodes.
   graph-status Check Graphiti MCP status.
+  graph-watchdog Check Graphiti runtime health and narrow recovery.
   index       Index markdown files from PATHS.
   reset       Drop all indexed data.
   search      Search indexed memory for QUERY.
@@ -40,7 +45,13 @@ Commands:
 | `memsearch watch` | Monitor directories and auto-index on file changes |
 | `memsearch compact` | Compress indexed chunks into an LLM-generated summary |
 | `memsearch graph-status` | Check the configured Graphiti MCP endpoint |
+| `memsearch graph-eval` | Run vector-vs-graph recall evaluation |
 | `memsearch graph-index` | Queue markdown sections into Graphiti as episodes |
+| `memsearch graph-index-curated` | Queue only curated durable sources into the active curated Graphiti group |
+| `memsearch graph-candidate-report` | Write a non-mutating candidate report for reviewed Graphiti seed promotion |
+| `memsearch graph-watchdog` | Check Graphiti runtime health and optionally run narrow recovery |
+| `memsearch graph-backup` | Create a non-destructive FalkorDB backup for the Graphiti sidecar |
+| `memsearch graph-clear-group` | Clear one explicitly confirmed Graphiti group for rollback |
 | `memsearch graph-search` | Search Graphiti facts and nodes |
 | `memsearch expand` | Progressive disclosure L2: show full section around a chunk 🔌 |
 | `memsearch transcript` | Progressive disclosure L3: view turns from a JSONL transcript 🔌 |
@@ -74,6 +85,17 @@ memsearch graph-search "what changed about Kuzu" \
 ```
 
 The Mini route needs `--host-header 127.0.0.1:18018` because the Graphiti MCP server protects localhost transports against DNS rebinding.
+
+Operational commands added for the Mini automation:
+
+```bash
+memsearch graph-watchdog --dry-run --json-output
+memsearch graph-candidate-report docs/graphiti-curated-seeds --output outputs/$(date +%Y-%m-%d)/graphiti-candidate-report.md
+memsearch graph-backup
+memsearch graph-clear-group --group-id ms_memsearch_active_curated_v1 --confirm-group-id ms_memsearch_active_curated_v1
+```
+
+`graph-candidate-report` is non-mutating. `graph-watchdog` only runs recovery with `--execute`. `graph-backup` only writes a backup with `--execute`. `graph-clear-group` only clears a graph group when `--execute` is supplied and the confirmation exactly matches the group ID.
 
 ---
 
