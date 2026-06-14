@@ -9,6 +9,7 @@ from click.testing import CliRunner
 from memsearch import cli as cli_module
 from memsearch.cli import cli
 from memsearch.config import MemSearchConfig
+from memsearch.graphiti.watchdog import WatchdogCheck
 
 
 class FakeGraphitiClient:
@@ -64,6 +65,10 @@ class FakeGraphitiClient:
     def add_memory(self, episode, *, group_id=""):
         self.calls.append(("add_memory", {"name": episode.name, "group_id": group_id}))
         return {"message": "queued"}
+
+    def clear_graph(self, *, group_id):
+        self.calls.append(("clear_graph", {"group_id": group_id}))
+        return {"message": "cleared"}
 
 
 class BrokenGraphitiClient(FakeGraphitiClient):
@@ -368,6 +373,144 @@ def test_search_include_graph_falls_back_to_vector_when_graphiti_fails(monkeypat
     assert payload["vector"][0]["chunk_hash"] == "exact-mon-316"
     assert payload["graph"] == {"facts": [], "nodes": []}
     assert payload["graph_error"] == "sidecar offline"
+
+
+def test_graph_watchdog_dry_run_reports_restart_without_executing(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "memsearch.graphiti.watchdog.collect_checks",
+        lambda: [WatchdogCheck("local_health", False, "connection refused")],
+    )
+    monkeypatch.setattr("memsearch.graphiti.watchdog.run_recovery_commands", lambda commands: calls.extend(commands))
+
+    result = CliRunner().invoke(cli, ["graph-watchdog", "--dry-run", "--json-output"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["decision"]["action"] == "restart_graphiti"
+    assert calls == []
+
+
+def test_graph_watchdog_execute_runs_recovery(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "memsearch.graphiti.watchdog.collect_checks",
+        lambda: [WatchdogCheck("local_health", False, "connection refused")],
+    )
+    monkeypatch.setattr("memsearch.graphiti.watchdog.run_recovery_commands", lambda commands: calls.extend(commands))
+
+    result = CliRunner().invoke(cli, ["graph-watchdog", "--execute", "--json-output"])
+
+    assert result.exit_code == 0
+    assert any("start-graphiti-mon316.sh" in command for command in calls)
+
+
+def test_graph_watchdog_records_consecutive_failures(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "memsearch.graphiti.watchdog.collect_checks",
+        lambda: [WatchdogCheck("local_health", False, "connection refused")],
+    )
+    monkeypatch.setattr("memsearch.graphiti.watchdog.run_recovery_commands", lambda commands: [])
+
+    state = tmp_path / "watchdog.json"
+
+    result = CliRunner().invoke(cli, ["graph-watchdog", "--dry-run", "--state-path", str(state), "--json-output"])
+
+    assert result.exit_code == 0
+    payload = json.loads(state.read_text())
+    assert payload["consecutive_failures"] == 1
+    assert payload["alert_required"] is False
+
+
+def test_graph_candidate_report_writes_report(tmp_path):
+    seed = tmp_path / "docs" / "graphiti-curated-seeds" / "seed.md"
+    output = tmp_path / "report.md"
+    seed.parent.mkdir(parents=True)
+    seed.write_text("### Current\n\nClassification: current\n\nGraphiti uses FalkorDB.\n\nEvidence: docs/graphiti-falkordb.md\n", encoding="utf-8")
+
+    result = CliRunner().invoke(cli, ["graph-candidate-report", str(seed), "--output", str(output)])
+
+    assert result.exit_code == 0
+    assert output.is_file()
+    body = output.read_text()
+    assert "Accepted" in body
+    assert "Classification: current" in body
+
+
+def test_graph_index_curated_dry_run_excludes_raw_daily_memory(monkeypatch, tmp_path):
+    raw = tmp_path / ".memsearch" / "memory" / "2026-06-14.md"
+    raw.parent.mkdir(parents=True)
+    raw.write_text("### Raw\n\nTroubleshooting notes.\n", encoding="utf-8")
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+
+    result = CliRunner().invoke(cli, ["graph-index-curated", str(tmp_path / ".memsearch" / "memory"), "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "0 selected" in result.output
+
+
+def test_graph_clear_group_requires_matching_confirmation(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+
+    result = CliRunner().invoke(
+        cli,
+        ["graph-clear-group", "--group-id", "ms_memsearch_active_curated_v1", "--confirm-group-id", "wrong", "--execute"],
+    )
+
+    assert result.exit_code == 1
+    assert "confirmation" in result.output.lower()
+
+
+def test_graph_clear_group_execute_calls_client(monkeypatch, tmp_path):
+    calls = []
+
+    class ClearClient(FakeGraphitiClient):
+        def clear_graph(self, *, group_id):
+            calls.append(group_id)
+            return {"message": "cleared"}
+
+    monkeypatch.setattr(cli_module, "resolve_config", lambda _overrides=None: _cfg(tmp_path))
+    monkeypatch.setattr("memsearch.graphiti.client.GraphitiClient", ClearClient)
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "graph-clear-group",
+            "--group-id",
+            "ms_memsearch_active_curated_v1",
+            "--confirm-group-id",
+            "ms_memsearch_active_curated_v1",
+            "--execute",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls == ["ms_memsearch_active_curated_v1"]
+
+
+def test_graph_backup_dry_run_prints_non_destructive_commands():
+    result = CliRunner().invoke(cli, ["graph-backup"])
+
+    assert result.exit_code == 0
+    assert "graphiti_mon316_falkordb_data" in result.output
+    assert "/var/lib/falkordb/data" in result.output
+    assert "down -v" not in result.output
+
+
+def test_graph_backup_execute_calls_runner(monkeypatch, tmp_path):
+    from memsearch.graphiti.backup import BackupResult
+
+    backup_path = tmp_path / "backup"
+    metadata_path = backup_path / "metadata.json"
+    monkeypatch.setattr(
+        "memsearch.graphiti.backup.run_backup",
+        lambda *, root, retain_days, prune_to_trash: BackupResult(path=backup_path, metadata_path=metadata_path),
+    )
+
+    result = CliRunner().invoke(cli, ["graph-backup", "--backup-root", str(tmp_path), "--execute"])
+
+    assert result.exit_code == 0
+    assert str(backup_path) in result.output
 
 
 def test_graph_eval_case_filter_runs_only_named_case(monkeypatch, tmp_path):

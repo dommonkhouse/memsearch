@@ -775,6 +775,171 @@ def graph_index_curated(
     click.echo(f"Manifest: {effective_manifest_path}")
 
 
+@cli.command("graph-watchdog")
+@click.option("--dry-run", is_flag=True, default=False)
+@click.option("--execute", is_flag=True, default=False)
+@click.option("--state-path", type=click.Path(path_type=Path), default=None)
+@click.option("--json-output", is_flag=True, default=False)
+def graph_watchdog(dry_run: bool, execute: bool, state_path: Path | None, json_output: bool) -> None:
+    """Check Graphiti/FalkorDB health and optionally run narrow recovery."""
+    from dataclasses import asdict
+
+    from .graphiti import watchdog
+
+    if dry_run and execute:
+        raise click.ClickException("Use --dry-run or --execute, not both")
+
+    checks = watchdog.collect_checks()
+    decision = watchdog.decide_recovery(checks)
+    previous_failures = _read_watchdog_failures(state_path)
+    current_failures = 0 if decision.action == "noop" else previous_failures + 1
+    alert_required = current_failures >= 3
+    recovery_results: list[dict[str, object]] = []
+
+    if execute and decision.commands:
+        try:
+            recovery_results = watchdog.run_recovery_commands(decision.commands) or []
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+        failed_recovery = [item for item in recovery_results if item.get("returncode") != 0]
+        if failed_recovery:
+            _write_watchdog_state(state_path, current_failures, alert_required, decision)
+            raise click.ClickException("Graphiti recovery command failed")
+
+    payload = {
+        "checks": [asdict(check) for check in checks],
+        "decision": asdict(decision),
+        "dry_run": dry_run or not execute,
+        "executed": bool(execute and decision.commands),
+        "recovery_results": recovery_results,
+        "consecutive_failures": current_failures,
+        "alert_required": alert_required,
+    }
+    if alert_required:
+        payload["alert_reason"] = f"Graphiti watchdog has seen {current_failures} consecutive failure(s)"
+
+    _write_watchdog_state(state_path, current_failures, alert_required, decision)
+
+    if json_output:
+        click.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+
+    click.echo(f"Graphiti watchdog: {decision.action} ({decision.reason})")
+    if alert_required:
+        click.echo(payload["alert_reason"])
+
+
+@cli.command("graph-candidate-report")
+@click.argument("paths", nargs=-1, required=True, type=click.Path(exists=True, path_type=Path))
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+def graph_candidate_report(paths: tuple[Path, ...], output: Path) -> None:
+    """Write a non-mutating reviewed-candidate report for Graphiti seeds."""
+    from .graphiti.candidates import CandidateStatus, build_candidate_report, render_candidate_report
+
+    report = build_candidate_report(paths)
+    invalid_accepted = [
+        item for item in report.accepted if item.status != CandidateStatus.ACCEPTED or item.classification != "current"
+    ]
+    if invalid_accepted:
+        raise click.ClickException("accepted Graphiti candidates must be current and evidence-backed")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(render_candidate_report(report), encoding="utf-8")
+    click.echo(f"Wrote Graphiti candidate report: {output}")
+
+
+@cli.command("graph-clear-group")
+@click.option("--group-id", required=True)
+@click.option("--confirm-group-id", required=True)
+@click.option("--execute", is_flag=True)
+@click.option("--endpoint", default=None, help="Graphiti MCP endpoint.")
+@click.option("--host-header", default=None, help="Override Host header for localhost-protected Graphiti MCP routes.")
+@click.option("--timeout", "timeout_seconds", default=None, type=int, help="Request timeout in seconds.")
+def graph_clear_group(
+    group_id: str,
+    confirm_group_id: str,
+    execute: bool,
+    endpoint: str | None,
+    host_header: str | None,
+    timeout_seconds: int | None,
+) -> None:
+    """Clear one explicitly confirmed Graphiti group."""
+    if group_id.strip() in {"", "*", "all"}:
+        raise click.ClickException("Refusing broad Graphiti group clear")
+    if confirm_group_id != group_id:
+        raise click.ClickException("Graphiti group confirmation does not match")
+
+    cfg = _safe_resolve_config()
+    effective_endpoint = endpoint or cfg.graphiti.endpoint
+    click.echo(f"Endpoint: {effective_endpoint}")
+    click.echo(f"Group: {group_id}")
+    if not execute:
+        click.echo("Dry-run only. Re-run with --execute to clear this group.")
+        return
+
+    client = _graphiti_client_from_config(
+        cfg,
+        endpoint=endpoint,
+        host_header=host_header,
+        timeout_seconds=timeout_seconds,
+    )
+    result = client.clear_graph(group_id=group_id)
+    click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+
+
+@cli.command("graph-backup")
+@click.option("--backup-root", type=click.Path(path_type=Path), default=Path("/Volumes/SSD/graphiti-mon316/backups"))
+@click.option("--execute", is_flag=True)
+@click.option("--retain-days", type=int, default=30)
+@click.option("--prune-to-trash", is_flag=True)
+def graph_backup(backup_root: Path, execute: bool, retain_days: int, prune_to_trash: bool) -> None:
+    """Create a non-destructive FalkorDB backup for the Graphiti sidecar."""
+    from .graphiti.backup import backup_dry_run, run_backup
+
+    if not execute:
+        click.echo(backup_dry_run(backup_root))
+        return
+    try:
+        result = run_backup(root=backup_root, retain_days=retain_days, prune_to_trash=prune_to_trash)
+    except (RuntimeError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Backup path: {result.path}")
+
+
+def _read_watchdog_failures(state_path: Path | None) -> int:
+    if state_path is None or not state_path.is_file():
+        return 0
+    try:
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return 0
+    value = data.get("consecutive_failures")
+    return value if isinstance(value, int) and value >= 0 else 0
+
+
+def _write_watchdog_state(
+    state_path: Path | None,
+    consecutive_failures: int,
+    alert_required: bool,
+    decision,
+) -> None:
+    if state_path is None:
+        return
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state = {
+        "consecutive_failures": consecutive_failures,
+        "alert_required": alert_required,
+        "decision": {
+            "action": decision.action,
+            "reason": decision.reason,
+            "commands": list(decision.commands),
+        },
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+    if alert_required:
+        state["alert_reason"] = f"Graphiti watchdog has seen {consecutive_failures} consecutive failure(s)"
+    state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 # ======================================================================
 # Expand command (progressive disclosure L2)
 #

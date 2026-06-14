@@ -76,6 +76,44 @@ def render_scheduler_plists(
             log_dir=log_dir,
         ),
     ]
+    if _is_graphiti_mini(machine):
+        rendered.extend(
+            [
+                _write_plist(
+                    output / "com.monkhouse.graphiti-mon316-watchdog.plist",
+                    label="com.monkhouse.graphiti-mon316-watchdog",
+                    repo_root=repo_root,
+                    args=[str(repo_root / "bin" / "graphiti-watchdog-mon316.sh")],
+                    interval=300,
+                    log_dir=log_dir,
+                    run_at_load=True,
+                ),
+                _write_plist(
+                    output / "com.monkhouse.graphiti-mon316-backup.plist",
+                    label="com.monkhouse.graphiti-mon316-backup",
+                    repo_root=repo_root,
+                    args=[str(repo_root / "bin" / "graphiti-backup-mon316.sh")],
+                    calendar={"Hour": 3, "Minute": 15},
+                    log_dir=log_dir,
+                ),
+                _write_plist(
+                    output / "com.memsearch.source-freshness-proof.plist",
+                    label="com.memsearch.source-freshness-proof",
+                    repo_root=repo_root,
+                    args=[str(repo_root / "bin" / "graphiti-source-freshness-proof-mon316.sh")],
+                    calendar={"Hour": 6, "Minute": 45},
+                    log_dir=log_dir,
+                ),
+                _write_plist(
+                    output / "com.memsearch.graphiti-candidate-report.plist",
+                    label="com.memsearch.graphiti-candidate-report",
+                    repo_root=repo_root,
+                    args=[str(repo_root / "bin" / "graphiti-candidate-report-mon316.sh")],
+                    calendar={"Weekday": 1, "Hour": 7, "Minute": 0},
+                    log_dir=log_dir,
+                ),
+            ]
+        )
     summary = {
         "installed": False,
         "approval_required_before_install": True,
@@ -98,24 +136,34 @@ def _shell_args(repo_root: Path, env_path: Path, command: list[str]) -> list[str
     return ["/bin/zsh", "-lc", shell_command]
 
 
+def _is_graphiti_mini(machine: str) -> bool:
+    normalised = machine.lower()
+    return "mac mini" in normalised and ("dominic" in normalised or "dom" in normalised)
+
+
 def _write_plist(
     path: Path,
     *,
     label: str,
     repo_root: Path,
     args: list[str],
-    calendar: dict[str, int],
+    calendar: dict[str, int] | None = None,
+    interval: int | None = None,
     log_dir: Path,
+    run_at_load: bool = False,
 ) -> RenderedPlist:
     payload = {
         "Label": label,
         "ProgramArguments": args,
         "WorkingDirectory": str(repo_root),
-        "StartCalendarInterval": calendar,
         "StandardOutPath": str(log_dir / f"{label}.out.log"),
         "StandardErrorPath": str(log_dir / f"{label}.err.log"),
-        "RunAtLoad": False,
+        "RunAtLoad": run_at_load,
     }
+    if calendar is not None:
+        payload["StartCalendarInterval"] = calendar
+    if interval is not None:
+        payload["StartInterval"] = interval
     with path.open("wb") as handle:
         plistlib.dump(payload, handle, sort_keys=True)
     return RenderedPlist(label=label, path=str(path))

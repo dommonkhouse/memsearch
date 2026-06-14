@@ -51,18 +51,17 @@ if [[ "$DOCKER_HOST" == *"/.colima/default/docker.sock"* ]]; then
   exit 1
 fi
 
-if ! docker context inspect colima >/dev/null 2>&1; then
-  echo "Default Colima Docker context missing; continuing with DOCKER_HOST=$DOCKER_HOST"
-else
-  docker context use colima >/dev/null 2>&1 || true
-fi
-
 docker version >/dev/null
 docker compose \
   -p "$PROFILE" \
   -f "$COMPOSE_BASE" \
   -f "$COMPOSE_MINI" \
   up -d
+
+docker update \
+  --restart unless-stopped \
+  "${PROFILE}-falkordb-1" \
+  "${PROFILE}-graphiti-mcp-1" >/dev/null
 
 docker compose \
   -p "$PROFILE" \
