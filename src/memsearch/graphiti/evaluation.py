@@ -899,6 +899,18 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         ),
     ),
     GraphEvaluationCase(
+        name="relationship-batch020-macbook-pilot-historical",
+        kind="relationship",
+        query="MacBook Graphiti pilot historical current Mac Mini Tailscale Serve route group manifest",
+        graph_must_contain=(
+            "historical",
+            "Mac Mini",
+            "Tailscale Serve",
+            "graphiti-falkordb.md",
+        ),
+        graph_must_not_contain=("127.0.0.1:8018 is current", "ms_memsearch_ae2d4f9b is current"),
+    ),
+    GraphEvaluationCase(
         name="negative-mon-249-performance",
         kind="negative",
         query="MON-249 homepage performance recovery",
