@@ -124,6 +124,8 @@ def sync_manus(
     *,
     machine: str,
     since: str | None = None,
+    created_since: str | None = None,
+    updated_since: str | None = None,
     output_root: Path = DEFAULT_MANUS_CARD_ROOT,
     state_dir: Path = Path(".local/source-sync-state"),
     dry_run: bool = False,
@@ -136,7 +138,8 @@ def sync_manus(
     client: ManusApiClient | None = None,
 ) -> SyncSummary:
     state = read_source_state(state_dir, "manus")
-    effective_since = since or state.last_success_at or ""
+    explicit_updated_since = updated_since or since
+    effective_since = since or updated_since or created_since or state.last_success_at or ""
     run_id = run_id or _run_id("manus")
     steps = (
         "estimate or fetch task list",
@@ -156,7 +159,10 @@ def sync_manus(
     tasks = client.iter_tasks(max_tasks=max_tasks)
     snapshots = _task_snapshots(tasks)
     changed_task_ids = _changed_task_ids(snapshots, state)
-    if not export_all and not state.task_snapshots:
+    date_filtered_task_ids = _date_filtered_task_ids(tasks, created_since=created_since, updated_since=explicit_updated_since)
+    has_date_filter = created_since is not None or explicit_updated_since is not None
+    selected_task_ids = date_filtered_task_ids if has_date_filter else (None if export_all else changed_task_ids)
+    if not export_all and not has_date_filter and not state.task_snapshots:
         return SyncSummary(
             source="manus",
             run_id=run_id,
@@ -169,7 +175,7 @@ def sync_manus(
             message="No prior Manus diff state exists. Weekly sync will not silently run a full export; rerun with --all.",
             steps=steps,
         )
-    if not export_all and not _timestamps_reliable(tasks):
+    if not export_all and not has_date_filter and not _timestamps_reliable(tasks):
         return SyncSummary(
             source="manus",
             run_id=run_id,
@@ -190,9 +196,9 @@ def sync_manus(
             dry_run=True,
             since=effective_since,
             machine=machine,
-            item_count=len(changed_task_ids) if not export_all else len(tasks),
+            item_count=len(selected_task_ids) if selected_task_ids is not None else len(tasks),
             card_count=0,
-            message="state update preview",
+            message="date-filtered preview; state will not be updated" if has_date_filter else "state update preview",
             steps=steps,
         )
 
@@ -204,10 +210,10 @@ def sync_manus(
             client,
             raw_root,
             machine=machine,
-            limit=None if export_all else len(changed_task_ids),
+            limit=None,
             run_id=run_id,
             resume=resume,
-            task_ids=None if export_all else changed_task_ids,
+            task_ids=selected_task_ids,
         )
         raw_run = raw_root / run_id
         errors = verify_manus_run(raw_run)
@@ -225,16 +231,21 @@ def sync_manus(
         index_result = index_markdown_cards(card_root / "memory" / "manus_cloud" / "manus_api", collection=collection, dry_run=not index)
         if index_result.returncode != 0:
             raise RuntimeError(f"Manus indexing failed: {index_result.stderr or index_result.stdout}")
-        next_state = state.record_success(
-            machine=machine,
-            run_id=run_id,
-            since=effective_since,
-            item_count=int(export_summary["tasks_converted"]),
-            card_count=int(card_summary["task_cards"]),
-            proof_ids=sorted(changed_task_ids or snapshots.keys())[:5],
-            task_snapshots=snapshots,
-        )
-        path = write_source_state(state_dir, next_state)
+        if has_date_filter:
+            path = state_dir.expanduser() / "manus.json"
+            message = f"date-filtered run; state not updated; raw_secret_hits={len(raw_hits)} promoted_tasks={promotion_summary['rendered_task_count']}"
+        else:
+            next_state = state.record_success(
+                machine=machine,
+                run_id=run_id,
+                since=effective_since,
+                item_count=int(export_summary["tasks_converted"]),
+                card_count=int(card_summary["task_cards"]),
+                proof_ids=sorted(selected_task_ids or snapshots.keys())[:5],
+                task_snapshots=snapshots,
+            )
+            path = write_source_state(state_dir, next_state)
+            message = f"raw_secret_hits={len(raw_hits)} promoted_tasks={promotion_summary['rendered_task_count']}"
         return SyncSummary(
             source="manus",
             run_id=run_id,
@@ -246,7 +257,7 @@ def sync_manus(
             card_count=int(card_summary["task_cards"]),
             output_dir=str(card_root),
             state_path=str(path),
-            message=f"raw_secret_hits={len(raw_hits)} promoted_tasks={promotion_summary['rendered_task_count']}",
+            message=message,
             steps=steps,
             index_command=tuple(index_result.command),
         )
@@ -270,6 +281,44 @@ def _changed_task_ids(snapshots: dict[str, str], state: SourceSyncState) -> list
 
 def _timestamps_reliable(tasks: list[dict[str, Any]]) -> bool:
     return all(str(task.get("updated_at") or task.get("updatedAt") or "").strip() for task in tasks)
+
+
+def _date_filtered_task_ids(tasks: list[dict[str, Any]], *, created_since: str | None, updated_since: str | None) -> list[str] | None:
+    if created_since is None and updated_since is None:
+        return None
+    created_cutoff = _parse_timestamp(created_since) if created_since else None
+    updated_cutoff = _parse_timestamp(updated_since) if updated_since else None
+    selected: list[str] = []
+    for task in tasks:
+        task_id = str(task.get("id") or "")
+        if not task_id:
+            continue
+        if created_cutoff is not None and not _task_timestamp_at_or_after(task, ("created_at", "createdAt"), created_cutoff):
+            continue
+        if updated_cutoff is not None and not _task_timestamp_at_or_after(task, ("updated_at", "updatedAt"), updated_cutoff):
+            continue
+        selected.append(task_id)
+    return sorted(selected)
+
+
+def _task_timestamp_at_or_after(task: dict[str, Any], keys: tuple[str, str], cutoff: datetime) -> bool:
+    value = str(task.get(keys[0]) or task.get(keys[1]) or "").strip()
+    if not value:
+        return False
+    try:
+        return _parse_timestamp(value) >= cutoff
+    except ValueError:
+        return False
+
+
+def _parse_timestamp(value: str) -> datetime:
+    text = value.strip()
+    if not text:
+        raise ValueError("timestamp cannot be empty")
+    parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def summary_json(summary: SyncSummary) -> str:

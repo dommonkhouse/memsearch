@@ -227,7 +227,9 @@ def source_sync_linear(
 
 @source_sync_group.command("manus")
 @click.option("--machine", required=True)
-@click.option("--since", default=None)
+@click.option("--since", default=None, help="Alias for --updated-since for Manus date-selective runs.")
+@click.option("--created-since", default=None, help="Select Manus tasks created at or after this ISO timestamp/date.")
+@click.option("--updated-since", default=None, help="Select Manus tasks updated at or after this ISO timestamp/date.")
 @click.option("--output-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/manus-cloud/manus-api"))
 @click.option("--state-dir", type=click.Path(path_type=Path), default=Path(".local/source-sync-state"))
 @click.option("--all", "export_all", is_flag=True)
@@ -240,6 +242,8 @@ def source_sync_linear(
 def source_sync_manus(
     machine: str,
     since: str | None,
+    created_since: str | None,
+    updated_since: str | None,
     output_root: Path,
     state_dir: Path,
     export_all: bool,
@@ -253,6 +257,8 @@ def source_sync_manus(
     summary = sync_manus(
         machine=machine,
         since=since,
+        created_since=created_since,
+        updated_since=updated_since,
         output_root=output_root,
         state_dir=state_dir,
         export_all=export_all,

@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 
 from memsearch.backfill import indexing
+from memsearch.backfill import source_sync as source_sync_module
+from memsearch.backfill.indexing import IndexResult
 from memsearch.backfill.linear_api import LinearIssue
 from memsearch.backfill.source_state import read_source_state, write_source_state
 from memsearch.backfill.source_sync import sync_linear, sync_manus
@@ -130,3 +132,87 @@ def test_manus_sync_dry_run_reports_changed_tasks_from_prior_state(tmp_path: Pat
     assert summary.status == "dry_run"
     assert summary.item_count == 2
     assert any("export changed tasks only" in step for step in summary.steps)
+
+
+def test_manus_sync_date_filter_dry_run_without_prior_state(tmp_path: Path) -> None:
+    client = FakeManusClient(
+        [
+            {"id": "task-old", "created_at": "2026-05-01T00:00:00Z", "updated_at": "2026-05-02T00:00:00Z"},
+            {"id": "task-new", "created_at": "2026-06-12T00:00:00Z", "updated_at": "2026-06-12T01:00:00Z"},
+        ]
+    )
+
+    summary = sync_manus(
+        machine="Test Mac",
+        state_dir=tmp_path / "state",
+        dry_run=True,
+        updated_since="2026-06-01",
+        client=client,
+    )
+
+    assert summary.status == "dry_run"
+    assert summary.item_count == 1
+    assert "date-filtered preview" in summary.message
+
+
+def test_manus_sync_since_aliases_updated_since(tmp_path: Path) -> None:
+    client = FakeManusClient(
+        [
+            {"id": "task-old", "updated_at": "2026-05-02T00:00:00Z"},
+            {"id": "task-new", "updated_at": "2026-06-12T01:00:00Z"},
+        ]
+    )
+
+    summary = sync_manus(
+        machine="Test Mac",
+        state_dir=tmp_path / "state",
+        dry_run=True,
+        since="2026-06-01",
+        client=client,
+    )
+
+    assert summary.status == "dry_run"
+    assert summary.since == "2026-06-01"
+    assert summary.item_count == 1
+
+
+def test_manus_sync_date_filter_exports_selected_tasks_without_updating_state(tmp_path: Path, monkeypatch) -> None:
+    captured = {}
+    client = FakeManusClient(
+        [
+            {"id": "task-old", "created_at": "2026-05-01T00:00:00Z", "updated_at": "2026-05-02T00:00:00Z"},
+            {"id": "task-new", "created_at": "2026-06-12T00:00:00Z", "updated_at": "2026-06-12T01:00:00Z"},
+        ]
+    )
+
+    def fake_export(client, output_root, *, machine, limit, run_id, resume, task_ids):
+        captured["limit"] = limit
+        captured["task_ids"] = task_ids
+        raw_run = output_root / run_id
+        raw_run.mkdir(parents=True)
+        return {"tasks_converted": len(task_ids or [])}
+
+    monkeypatch.setattr(source_sync_module, "export_manus_run", fake_export)
+    monkeypatch.setattr(source_sync_module, "verify_manus_run", lambda _raw_run: [])
+    monkeypatch.setattr(source_sync_module, "scan_path_for_secrets", lambda _path: [])
+    monkeypatch.setattr(source_sync_module, "promote_manus_run", lambda *_args, **_kwargs: {"rendered_task_count": 1})
+    monkeypatch.setattr(source_sync_module, "generate_manus_memsearch_cards", lambda *_args, **_kwargs: {"task_cards": 1})
+    monkeypatch.setattr(
+        source_sync_module,
+        "index_markdown_cards",
+        lambda path, *, collection, dry_run: IndexResult(["memsearch", "index", str(path)], returncode=0),
+    )
+
+    state_dir = tmp_path / "state"
+    summary = sync_manus(
+        machine="Test Mac",
+        state_dir=state_dir,
+        output_root=tmp_path / "cards",
+        updated_since="2026-06-01",
+        client=client,
+    )
+
+    assert summary.status == "success"
+    assert captured == {"limit": None, "task_ids": ["task-new"]}
+    assert "state not updated" in summary.message
+    assert not (state_dir / "manus.json").exists()
