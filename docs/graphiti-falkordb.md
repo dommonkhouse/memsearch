@@ -43,7 +43,9 @@ Do not use `/mcp/` with a trailing slash. The server redirects `/mcp/` to `/mcp`
 
 - Repo checkout on Mini: `~/Projects/memsearch`.
 - Dedicated Colima home: `/Volumes/SSD/graphiti-mon316/colima-home`.
-- Logs: `/Volumes/SSD/graphiti-mon316/logs`.
+- Preferred logs: `/Volumes/SSD/graphiti-mon316/logs`.
+- LaunchAgent fallback logs: `~/Library/Logs/graphiti-mon316`.
+- LaunchAgent fallback state: `~/Library/Application Support/graphiti-mon316/state`.
 - Secrets: `~/.secrets/graphiti.env`.
 - Local MCP client venv: `~/venvs/graphiti-mcp-client`.
 - Graphiti LaunchAgent: `~/Library/LaunchAgents/com.monkhouse.graphiti-mon316.plist`.
@@ -132,6 +134,8 @@ Rendered LaunchAgents:
 - `com.memsearch.graphiti-candidate-report`: runs `bin/graphiti-candidate-report-mon316.sh` Monday at 07:00.
 
 The watchdog uses the dedicated `graphiti-mon316` Colima socket when present and only runs the narrow recovery commands returned by `memsearch graph-watchdog`. It refuses commands that mention Milvus, destructive Compose volume removal, or Docker volume deletion.
+
+macOS may deny user LaunchAgents write access to the external SSD even when the same user can write there from an interactive shell. The Graphiti wrappers therefore treat SSD logs, backup, and watchdog state as preferred paths and fall back to the user Library paths above when launchd reports `Operation not permitted`.
 
 ## Backup and restore drill
 

@@ -4,11 +4,16 @@ set -euo pipefail
 PROFILE="graphiti-mon316"
 COLIMA_HOME="/Volumes/SSD/graphiti-mon316/colima-home"
 LOG_DIR="/Volumes/SSD/graphiti-mon316/logs"
+FALLBACK_LOG_DIR="$HOME/Library/Logs/graphiti-mon316"
 PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 SOCKET="$COLIMA_HOME/$PROFILE/docker.sock"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_BASE="$REPO_ROOT/deploy/graphiti/docker-compose.yml"
 COMPOSE_MINI="$REPO_ROOT/deploy/graphiti/docker-compose.mini.yml"
+
+if ! (mkdir -p "$LOG_DIR" && : >>"$LOG_DIR/stop.log") 2>/dev/null; then
+  LOG_DIR="$FALLBACK_LOG_DIR"
+fi
 
 mkdir -p "$LOG_DIR"
 exec > >(tee -a "$LOG_DIR/stop.log") 2>&1

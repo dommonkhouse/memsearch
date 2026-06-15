@@ -106,7 +106,7 @@ After the 06:30 Linear sync, `com.memsearch.source-freshness-proof` runs at 06:4
 uv run python -m memsearch.backfill.cli source-freshness --run-proof
 ```
 
-The job writes logs to `/Volumes/SSD/graphiti-mon316/logs/source-freshness-proof.log` on the Mini.
+The job prefers `/Volumes/SSD/graphiti-mon316/logs/source-freshness-proof.log` on the Mini and falls back to `~/Library/Logs/graphiti-mon316/source-freshness-proof.log` when launchd cannot write to the external SSD.
 
 ## Scheduler rendering
 
