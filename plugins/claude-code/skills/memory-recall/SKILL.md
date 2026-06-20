@@ -17,9 +17,10 @@ Search for memories relevant to: $ARGUMENTS
 
 ## Steps
 
-1. **Search**: Run `memsearch search "<query>" --top-k 5 --json-output --collection <collection name above>` to find relevant chunks.
+1. **Search**: Run `memsearch search "<query>" --top-k 5 --json-output --no-graph --collection <collection name above>` to find relevant chunks.
    - If `memsearch` is not found, try `uvx memsearch` instead.
    - Choose a search query that captures the core intent of the user's question.
+   - Pass `--no-graph` (or read the `vector` key) so each result carries the citation fields (`author`, `source`, `start_line`/`end_line`, `date`, `days_since`, `stale`) directly. The default `--include-graph` wraps results under a graph object.
 
 2. **Evaluate**: Look at the search results. Skip chunks that are clearly irrelevant or too generic.
 
@@ -45,6 +46,16 @@ Once a concrete topic jumps out, go back to `memsearch search` with a specific q
 
 Organize by relevance. For each memory include:
 - The key information (decisions, patterns, solutions, context)
-- Source reference (file name, date) for traceability
+- A citation in the form `author · source:line · date (Nd ago)` — e.g. `Decided by <author> · .memsearch/memory/2026-06-10.md:5-7 · 9 days ago`. Append `⚠ stale` when the result's `stale` field is true.
 
-If nothing relevant is found, simply say "No relevant memories found."
+## Citation & honesty contract
+
+State a `Status` for the answer so the reader knows how much to trust it:
+
+- **Status: found** — the memory directly answers the question. Cite it as `author · source:line · date (Nd ago)`, with `⚠ stale` if the `stale` field is true.
+- **Status: partial** — only adjacent or older context exists. Cite what you have and say plainly what's missing.
+- **Status: absent** — nothing relevant was found. Say so, and back it with evidence of what was searched: run `memsearch coverage --json-output` to report the indexed date-range and any gaps, so "not found" reflects a real search of the index rather than a guess.
+
+Never invent a date, author, or source. If a result has no `date` (undated source), say the date is unknown rather than guessing.
+
+If nothing relevant is found, simply say "No relevant memories found." and, where it helps, cite the `coverage` span you searched.

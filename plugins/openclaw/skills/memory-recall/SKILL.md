@@ -41,6 +41,17 @@ Parses the original session transcript to retrieve the raw dialogue.
 - memory_get may reveal `<!-- session:UUID transcript:PATH -->` anchors — pass the path to memory_transcript
 - If memory_search returns no results, try rephrasing with different keywords
 - Results are sorted by relevance (hybrid BM25 + vector search)
+- Each result carries citation fields (`author`, `source`, `start_line`/`end_line`, `date`, `days_since`, `stale`). If you reach for the underlying CLI, the equivalent is `memsearch search "<query>" --json-output --no-graph` (or read the `vector` key) so those fields come through directly rather than nested under the graph wrapper.
+
+## Citation & honesty contract
+
+When you report a memory back, state a `Status` so the reader knows how much to trust it, and cite the source:
+
+- **Status: found** — the memory directly answers the question. Cite it as `author · source:line · date (Nd ago)` — e.g. `Decided by <author> · .memsearch/memory/2026-06-10.md:5-7 · 9 days ago`. Append `⚠ stale` when the result's `stale` field is true.
+- **Status: partial** — only adjacent or older context exists. Cite what you have and say plainly what's missing.
+- **Status: absent** — nothing relevant was found. Say so, and back it with evidence of what was searched: the `memsearch coverage --json-output` command reports the indexed date-range and any gaps, so "not found" reflects a real search of the index rather than a guess.
+
+Never invent a date, author, or source. If a result has no `date` (undated source), say the date is unknown rather than guessing.
 
 ## When unsure what to search
 
