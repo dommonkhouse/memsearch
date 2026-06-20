@@ -101,6 +101,10 @@ def _cfg_to_memsearch_kwargs(cfg: MemSearchConfig) -> dict:
         "max_chunk_size": cfg.chunking.max_chunk_size,
         "overlap_lines": cfg.chunking.overlap_lines,
         "reranker_model": cfg.reranker.model,
+        "author": cfg.citation.author,
+        "citation_scope": cfg.citation.scope,
+        "stale_after_days": cfg.citation.stale_after_days,
+        "authority_rerank": cfg.authority_rerank,
     }
 
 
@@ -409,7 +413,8 @@ def search(
                     heading = r.get("heading", "")
                     content = r.get("content", "")
                     click.echo(f"\n--- Result {i} (score: {score:.4f}) ---")
-                    click.echo(f"Source: {source}")
+                    loc = f"{source}:{r['start_line']}-{r['end_line']}" if r.get("start_line") is not None else source
+                    click.echo(f"Source: {loc}")
                     if heading:
                         click.echo(f"Heading: {heading}")
                     if len(content) > 500:
@@ -418,6 +423,13 @@ def search(
                         click.echo(f"  ... [truncated, run 'memsearch expand {chunk_hash}' for full content]")
                     else:
                         click.echo(content)
+                    author_disp = r.get("author") or "the owner"
+                    cite = f"  decided by {author_disp}"
+                    if r.get("date"):
+                        cite += f" · {r['date']} ({r['days_since']}d ago)"
+                    if r.get("stale"):
+                        cite += "  ⚠ stale"
+                    click.echo(cite)
             if include_graph:
                 if graph_error:
                     click.echo(f"\nGraphiti unavailable; returned vector results only: {graph_error}", err=True)

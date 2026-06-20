@@ -69,6 +69,7 @@ def test_cfg_to_memsearch_kwargs_translates_resolved_config() -> None:
     cfg.chunking.max_chunk_size = 1800
     cfg.chunking.overlap_lines = 4
     cfg.reranker.model = ""
+    cfg.citation.author = "Dominic Monkhouse (dominicmonkhouse)"
 
     kwargs = cli_module._cfg_to_memsearch_kwargs(cfg)
 
@@ -84,4 +85,8 @@ def test_cfg_to_memsearch_kwargs_translates_resolved_config() -> None:
         "max_chunk_size": 1800,
         "overlap_lines": 4,
         "reranker_model": "",
+        "author": "Dominic Monkhouse (dominicmonkhouse)",
+        "citation_scope": "private",
+        "stale_after_days": 14,
+        "authority_rerank": cfg.authority_rerank,
     }
