@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from .config import AuthorityRerankConfig
     from .watcher import FileWatcher
 
 from .chunker import Chunk, chunk_markdown, clean_content_for_embedding, compute_chunk_id
@@ -64,7 +65,13 @@ class MemSearch:
         max_chunk_size: int = 1500,
         overlap_lines: int = 2,
         reranker_model: str = "",
+        author: str = "",
+        citation_scope: str = "private",
+        stale_after_days: int = 14,
+        authority_rerank: AuthorityRerankConfig | None = None,
     ) -> None:
+        from .config import AuthorityRerankConfig
+
         self._paths = [str(p) for p in (paths or [])]
         self._max_chunk_size = max_chunk_size
         self._overlap_lines = overlap_lines
@@ -83,6 +90,10 @@ class MemSearch:
             description=description,
         )
         self._reranker_model = reranker_model
+        self._author = author
+        self._citation_scope = citation_scope
+        self._stale_after_days = stale_after_days
+        self._authority_rerank = authority_rerank if authority_rerank is not None else AuthorityRerankConfig()
 
     # ------------------------------------------------------------------
     # Indexing
@@ -208,6 +219,7 @@ class MemSearch:
         *,
         top_k: int = 10,
         source_prefix: str | Path | None = None,
+        today: date | None = None,
     ) -> list[dict[str, Any]]:
         """Semantic search across indexed chunks.
 
@@ -216,16 +228,22 @@ class MemSearch:
         query:
             Natural-language query.
         top_k:
-            Maximum results to return.
+            Maximum results to return.  Authority/recency floor-gating may
+            return **fewer than** ``top_k`` rows when low-scoring candidates
+            are dropped as noise.
         source_prefix:
             Optional path prefix to scope results. Only chunks whose
             ``source`` starts with this prefix are returned.
+        today:
+            Reference date for recency/staleness computation.  Defaults to
+            ``date.today()``; injected by tests for deterministic results.
 
         Returns
         -------
         list[dict]
             Each dict contains ``content``, ``source``, ``heading``,
-            ``score``, and other metadata.
+            ``score``, citation fields (``author``, ``scope``, ``date``,
+            ``days_since``, ``stale``), and other metadata.
         """
         filter_expr = ""
         if source_prefix is not None:
@@ -235,7 +253,9 @@ class MemSearch:
 
         exact_identifier = _looks_like_exact_identifier(query)
         embeddings = await self._embedder.embed([query])
-        fetch_k = top_k * 3 if self._reranker_model else top_k
+        # fetch_k: widen when EITHER reranker is active (was: only cross-encoder)
+        widen = bool(self._reranker_model) or self._authority_rerank.enabled
+        fetch_k = top_k * 3 if widen else top_k
         if exact_identifier:
             fetch_k = max(fetch_k, top_k * 5, 1500)
             fetch_k = max(fetch_k, int(self._store.count()))
@@ -243,10 +263,34 @@ class MemSearch:
         if self._reranker_model and results:
             from .reranker import rerank
 
-            results = rerank(query, results, model_name=self._reranker_model, top_k=fetch_k if exact_identifier else top_k)
+            # pass the full candidate window through the cross-encoder when
+            # authority rerank will run after it (so it doesn't pre-truncate)
+            ce_top_k = fetch_k if (exact_identifier or self._authority_rerank.enabled) else top_k
+            results = rerank(query, results, model_name=self._reranker_model, top_k=ce_top_k)
+
+        from .provenance import enrich, rerank_by_authority_recency
+
+        today = today or date.today()
         if exact_identifier:
             results = _prioritize_exact_identifier_matches(query, results)
-        return results[:top_k]
+        elif self._authority_rerank.enabled:
+            ar = self._authority_rerank
+            results = rerank_by_authority_recency(
+                results,
+                weights=ar.authority_weights,
+                half_life_days=ar.half_life_days,
+                recency_floor=ar.recency_floor,
+                floor_ratio=ar.floor_ratio,
+                today=today,
+            )
+        results = results[:top_k]
+        return enrich(
+            results,
+            author=self._author,
+            scope=self._citation_scope,
+            today=today,
+            stale_after_days=self._stale_after_days,
+        )
 
     # ------------------------------------------------------------------
     # Compact (compress memories)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from memsearch.config import AuthorityRerankConfig
 from memsearch.core import MemSearch, _looks_like_exact_identifier, _prioritize_exact_identifier_matches
 
 
@@ -75,6 +76,10 @@ async def test_search_widens_exact_identifier_candidates_to_collection_size() ->
     mem._embedder = FakeEmbedder()
     mem._store = store
     mem._reranker_model = ""
+    mem._author = ""
+    mem._citation_scope = "private"
+    mem._stale_after_days = 14
+    mem._authority_rerank = AuthorityRerankConfig(enabled=False)
 
     results = await mem.search("582d619", top_k=1)
 
