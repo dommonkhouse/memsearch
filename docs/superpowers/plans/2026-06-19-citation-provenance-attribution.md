@@ -37,7 +37,7 @@
 | `src/memsearch/core.py` | `__init__` params; `search()` candidate-window + ordering + `today` + enrich/rerank | Modify (`51-85`, `205-249`) |
 | `src/memsearch/cli.py` | `_cfg_to_memsearch_kwargs` carries citation kwargs; `source:line` + citation in human output; `coverage` command | Modify (`90-104`, `404-420`) + add command |
 | `tests/test_cli_config_helpers.py` | existing exact-dict assertion of `_cfg_to_memsearch_kwargs` — must be updated | Modify (`59-87`) |
-| `~/.claude/skills/memory-recall/SKILL.md` | cite author/date/age/stale; use `coverage`; machine config — NOT a repo commit | Modify (deployed) |
+| `~/.claude/skills/memory-recall/SKILL.md` **and** `~/.codex/skills/memory-recall/SKILL.md` | cite author/date/age/stale; use `coverage` + `--no-graph`; both are separate non-symlink deployed dirs — machine config, NOT repo commits | Modify (2 deployed) |
 | `plugins/{claude-code,codex,opencode,openclaw}/skills/memory-recall/SKILL.md` | add citation/honesty contract + `--no-graph` recall | Modify (4 repo copies) |
 | `tests/test_provenance.py` | unit tests for all provenance functions | **Create** |
 | `tests/test_core_provenance.py` | integration via `make_fake_memsearch` (models `tests/test_core_exact_identifiers.py:40-78`, **respects `top_k`**) + a real-`__init__` monkeypatch test | **Create** |
@@ -341,11 +341,13 @@ Register both in `MemSearchConfig` (`citation`, `authority_rerank`) + `_SECTION_
 
 **Fixture note (verified):** no `fake_memsearch_factory` exists; `tests/test_core.py` uses a real `MemSearch` gated on `OPENAI_API_KEY`. Build `make_fake_memsearch(...)` modelled on `tests/test_core_exact_identifiers.py:40-78` (`MemSearch.__new__`). It MUST set `_embedder`, `_store`, `_reranker_model`, `_author`, `_citation_scope`, `_stale_after_days`, `_authority_rerank`. The fake store MUST **record and respect `top_k`** (slice its return) so the candidate-window test is meaningful.
 
+**Existing-test regression (verified):** the fake in `tests/test_core_exact_identifiers.py:73-78` sets only `_embedder`/`_store`/`_reranker_model`. The new `search()` reads `_authority_rerank.enabled` and calls `enrich(... self._author, self._citation_scope, self._stale_after_days)`, so that test will `AttributeError` under the full gate. As part of this task, add `_author=""`, `_citation_scope="private"`, `_stale_after_days=14`, `_authority_rerank=AuthorityRerankConfig(enabled=False)` to that existing fake (disabling authority rerank keeps its exact-identifier assertions unchanged).
+
 - [ ] **Step 1: Failing tests**
   - `test_search_results_carry_citation_fields` — single dated result; assert `author/date/days_since/stale` (pass explicit `today=date(2026,6,19)`).
   - `test_recent_result_promoted_from_beyond_top_k` — store holds 12 rows; the only fresh-dated row sits at raw index 11; call `search(top_k=5, today=...)` with `authority_enabled=True`; assert the fresh row is in the returned top-5. (Proves `fetch_k` widening + rerank — fails if `fetch_k` isn't widened for authority.)
   - `test_exact_identifier_not_demoted_by_recency` — a stale-dated exact hash match present; assert it stays first (authority rerank skipped on exact path).
-  - `test_cross_encoder_composes_with_authority` — set `reranker_model="x"`, `monkeypatch` `memsearch.core`'s imported `rerank` to a stub returning input unsliced; `authority_enabled=True`; assert stub ran AND final order reflects recency.
+  - `test_cross_encoder_composes_with_authority` — set `reranker_model="x"`, `monkeypatch` **`memsearch.reranker.rerank`** (NOT `memsearch.core.rerank` — `search()` uses a function-local `from .reranker import rerank`, so patch the source module) to a stub returning input unsliced; `authority_enabled=True`; assert stub ran AND final order reflects recency.
   - `test_init_sets_citation_defaults` — monkeypatch `memsearch.core.get_provider` and `memsearch.core.MilvusStore` to fakes, construct real `MemSearch(...)`, assert `_author == ""`, `_stale_after_days == 14`, `_authority_rerank.enabled is True`. (No `...` no-op.)
 - [ ] **Step 2: Run → FAIL.**
 - [ ] **Step 3: Implement** — `__init__` adds `author=""`, `citation_scope="private"`, `stale_after_days=14`, `authority_rerank=None` (→ `AuthorityRerankConfig()`); `search()` gains `today=None`. Rewire:
@@ -430,14 +432,14 @@ In the human-output loop, change the `Source:` line to include the line range an
 
 ## Phase 4 — Recall skill citation contract (all copies)
 
-### Task 8: Deployed recall skill (machine config — NOT a repo commit)
+### Task 8: Deployed recall skills — BOTH Claude and Codex (machine config — NOT repo commits)
 
-**Files:** Modify `~/.claude/skills/memory-recall/SKILL.md` (`35-58`).
+**Files (verified, two separate non-symlink dirs):** `~/.claude/skills/memory-recall/SKILL.md` (`35-58`) AND `~/.codex/skills/memory-recall/SKILL.md` (still has the old search command without `--no-graph` at line `66` and the old evidence contract at `40-58`/`109-111`). Both are the *active* deployed skills the runtimes load; both must change.
 
-- [ ] **Step 1:** Update the `Evidence:` line to require `author · source:line · date (Nd ago)` + `⚠ stale` when stale. For `absent`/`partial`, run `memsearch coverage --json-output` and cite the indexed date-range + gaps.
-- [ ] **Step 2:** Add the worked example: *"You set the third pricing tier at £37. Decided by Dominic Monkhouse · `.memsearch/memory/2026-06-10.md:5-7` · 9 days ago. No newer pricing memory found (checked logs to 2026-06-19)."* Note: recall commands must use `--no-graph` (or read the `vector` key) so the JSON carries citation fields directly.
-- [ ] **Step 3: Verify** — re-read; confirm author + `coverage` + `--no-graph` present.
-- [ ] **Step 4:** Report in chat. Outside the repo — do NOT commit; do NOT push Dom-specific notes into repo copies.
+- [ ] **Step 1:** In BOTH files, update the `Evidence:` line to require `author · source:line · date (Nd ago)` + `⚠ stale` when stale. For `absent`/`partial`, run `memsearch coverage --json-output` and cite the indexed date-range + gaps.
+- [ ] **Step 2:** In BOTH files, change the `memsearch search ...` recall command(s) to pass `--no-graph` (or read the `vector` key) so JSON carries citation fields directly. Add the worked example: *"You set the third pricing tier at £37. Decided by Dominic Monkhouse · `.memsearch/memory/2026-06-10.md:5-7` · 9 days ago. No newer pricing memory found (checked logs to 2026-06-19)."*
+- [ ] **Step 3: Verify** — for each deployed file run `grep -nE "decided by|--no-graph|coverage|source:line|Status: found" <file>` and confirm the markers are present in both `~/.claude/...` and `~/.codex/...`.
+- [ ] **Step 4:** Report in chat. Outside the repo — do NOT commit; do NOT push Dom-specific notes into the repo copies.
 
 ### Task 9: Repo plugin recall skills (all four copies)
 
@@ -467,8 +469,9 @@ In the human-output loop, change the `Source:` line to include the line range an
 ## Review status / ledger
 
 - **Plan-document-reviewer (Claude): ✅** — folded: CLI via `_cfg_to_memsearch_kwargs`, required `_FLOAT_FIELDS`, enrich-after-slice + `today`, real fake-store helper + real-`__init__` test, top-survives + compose tests.
-- **ap-check attempt 1 (Codex): findings folded (see fixes below).** All accepted except one partial-rejection.
-- **ap-check attempt 2 (Codex): _pending_.**
+- **ap-check attempt 1 (Codex): findings folded.** All accepted except one partial-rejection.
+- **ap-check attempt 2 (Codex): confirmed attempt-1 items resolved; 3 new blockers folded (see fixes below).**
+- **ap-check attempt 3 (Codex): _pending_.**
 
 ---
 
@@ -486,3 +489,8 @@ In the human-output loop, change the `Source:` line to include the line range an
 9. **Recall-skill scope + JSON shape** — FIXED: Task 9 updates all four repo copies and mandates `--no-graph` (or read `vector`).
 10. **Commit steps vs "no commits unless asked"** — RESOLVED: execution preamble scopes commits to a local `feat/` branch (authorised by `/executing-plans`); push/PR still needs explicit approval.
 - **PARTIAL-REJECT:** Codex wanted `author` to default to `"Dominic Monkhouse (dominicmonkhouse)"` in `CitationConfig`/`__init__`. Rejected the *hardcoded library default* (this repo is a public fork of `zilliztech/memsearch`; baking Dom's name into the dataclass is wrong) — but accepted the underlying requirement: Task 4 Step 6 sets `citation.author` in Dom's config and Task 6 tests that the configured author flows through; CLI keeps `"the owner"` only as a defensive display fallback.
+
+**Attempt 2 (Codex) — confirmed attempt-1 items resolved; 3 new blockers, all FIXED:**
+11. **Existing `test_core_exact_identifiers.py` fake breaks** (sets only `_embedder`/`_store`/`_reranker_model`; new `search()` reads `_authority_rerank` + `_author`/`_citation_scope`/`_stale_after_days` → `AttributeError` under full gate) — FIXED: Task 5 adds the 4 new attrs to that existing fake (`_authority_rerank=AuthorityRerankConfig(enabled=False)` so its exact-identifier assertions are unchanged).
+12. **Compose-test patch target wrong** (`search()` uses function-local `from .reranker import rerank`, so `memsearch.core.rerank` doesn't exist to patch) — FIXED: Task 5 compose test patches `memsearch.reranker.rerank`.
+13. **Deployed Codex skill missed** (`~/.codex/skills/memory-recall/SKILL.md` is a separate non-symlink dir still without `--no-graph`) — FIXED: Task 8 now updates BOTH deployed skills (`~/.claude/...` and `~/.codex/...`) and verifies the markers in each.
