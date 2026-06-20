@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 import sys
 from contextlib import contextmanager
@@ -722,7 +723,9 @@ def graph_index_curated(
     from .scanner import scan_paths
 
     if not dry_run and limit is None:
-        click.echo("Refusing uncapped curated Graphiti ingestion. Re-run with --dry-run first, then a --limit cap.", err=True)
+        click.echo(
+            "Refusing uncapped curated Graphiti ingestion. Re-run with --dry-run first, then a --limit cap.", err=True
+        )
         raise SystemExit(1) from None
 
     cfg = _safe_resolve_config()
@@ -1376,6 +1379,86 @@ def stats(
     finally:
         if store is not None:
             store.close()
+
+
+@cli.command()
+@click.option("--gap-days", default=2, type=int, help="Flag gaps between consecutive dated days larger than this.")
+@click.option("--json-output", "-j", is_flag=True, help="Emit machine-readable JSON instead of a human summary.")
+@click.option("--collection", "-c", default=None, help="Milvus collection name.")
+@click.option("--milvus-uri", default=None, help="Milvus connection URI.")
+@click.option("--milvus-token", default=None, help="Milvus auth token.")
+def coverage(
+    gap_days: int,
+    json_output: bool,
+    collection: str | None,
+    milvus_uri: str | None,
+    milvus_token: str | None,
+) -> None:
+    """Report the date span of indexed memory and any gaps, for honest partial/absent answers."""
+    from .provenance import extract_file_date
+    from .store import MilvusStore
+
+    cfg = _safe_resolve_config(
+        _build_cli_overrides(
+            collection=collection,
+            milvus_uri=milvus_uri,
+            milvus_token=milvus_token,
+        )
+    )
+    store = None
+    try:
+        store = MilvusStore(
+            uri=cfg.milvus.uri,
+            token=cfg.milvus.token or None,
+            collection=cfg.milvus.collection,
+            dimension=None,
+        )
+        sources = store.indexed_sources()
+    except MilvusException as e:
+        click.echo(f"Milvus error (code {e.code}): {e.message}", err=True)
+        raise SystemExit(1) from None
+    finally:
+        if store is not None:
+            store.close()
+
+    parsed = [(s, extract_file_date(s)) for s in sources]
+    dates = sorted({d for _, d in parsed if d is not None})
+    undated_count = sum(1 for _, d in parsed if d is None)
+
+    gaps: list[list] = []
+    for prev, curr in itertools.pairwise(dates):
+        delta = (curr - prev).days
+        if delta > gap_days:
+            gaps.append([prev.isoformat(), curr.isoformat(), delta])
+
+    earliest = dates[0].isoformat() if dates else None
+    latest = dates[-1].isoformat() if dates else None
+
+    payload = {
+        "earliest": earliest,
+        "latest": latest,
+        "dated_source_count": len(dates),
+        "undated_source_count": undated_count,
+        "gaps": gaps,
+    }
+
+    if json_output:
+        click.echo(json.dumps(payload))
+        return
+
+    if not dates:
+        click.echo(f"No dated indexed memory found; {undated_count} undated source(s).")
+        return
+
+    span_days = (dates[-1] - dates[0]).days
+    line = f"Indexed memory spans {earliest} → {latest} ({span_days} days); {undated_count} undated source"
+    line += "" if undated_count == 1 else "s"
+    if gaps:
+        gap_strs = ", ".join(f"{g[0]} → {g[1]} ({g[2]}d)" for g in gaps)
+        line += f"; gaps: {gap_strs}"
+    else:
+        line += "; no gaps"
+    click.echo(line)
 
 
 @cli.command()
