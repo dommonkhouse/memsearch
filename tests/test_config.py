@@ -512,3 +512,82 @@ def test_dict_to_config_accepts_empty_section_dicts() -> None:
     assert cfg.embedding.provider == "openai"
     assert cfg.milvus.collection == "memsearch_chunks"
     assert cfg.watch.debounce_ms == 1500
+
+
+# -- citation / authority-rerank config tests --
+
+
+def test_citation_config_defaults():
+    """CitationConfig should default to an empty author, private scope, 14-day staleness."""
+    from memsearch.config import CitationConfig
+
+    cfg = CitationConfig()
+    assert cfg.author == ""
+    assert cfg.scope == "private"
+    assert cfg.stale_after_days == 14
+
+
+def test_authority_rerank_config_defaults():
+    """AuthorityRerankConfig should expose ranking defaults and a weights dict."""
+    from memsearch.config import AuthorityRerankConfig
+
+    cfg = AuthorityRerankConfig()
+    assert cfg.enabled is True
+    assert cfg.half_life_days == 14
+    assert cfg.floor_ratio == 0.3
+    assert cfg.recency_floor == 0.7
+    assert cfg.authority_weights["MEMORY.md"] == 2.0
+    assert cfg.authority_weights[".memsearch/memory/"] == 1.0
+
+
+def test_memsearch_config_has_citation_and_authority_rerank():
+    """MemSearchConfig should expose the new citation and authority_rerank sections."""
+    cfg = MemSearchConfig()
+    assert cfg.citation.author == ""
+    assert cfg.citation.scope == "private"
+    assert cfg.citation.stale_after_days == 14
+    assert cfg.authority_rerank.enabled is True
+    assert cfg.authority_rerank.half_life_days == 14
+    assert cfg.authority_rerank.floor_ratio == 0.3
+    assert cfg.authority_rerank.recency_floor == 0.7
+
+
+def test_citation_authority_toml_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """TOML should override citation.stale_after_days and authority_rerank floats/ints."""
+    cfg_file = tmp_path / "config.toml"
+    save_config(
+        {
+            "citation": {"stale_after_days": 30},
+            "authority_rerank": {"half_life_days": 21, "floor_ratio": 0.5},
+        },
+        cfg_file,
+    )
+
+    monkeypatch.setattr("memsearch.config.GLOBAL_CONFIG_PATH", cfg_file)
+    monkeypatch.setattr("memsearch.config.PROJECT_CONFIG_PATH", tmp_path / "nope.toml")
+
+    cfg = resolve_config()
+    assert cfg.citation.stale_after_days == 30
+    assert cfg.authority_rerank.half_life_days == 21
+    assert cfg.authority_rerank.floor_ratio == 0.5
+    # Untouched authority fields remain default
+    assert cfg.authority_rerank.recency_floor == 0.7
+    assert cfg.authority_rerank.enabled is True
+    # Default weights dict survives reconstruction
+    assert cfg.authority_rerank.authority_weights["MEMORY.md"] == 2.0
+
+
+def test_set_config_value_float_coercion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """set_config_value should coerce float fields from CLI strings and round-trip as float."""
+    cfg_path = tmp_path / "config.toml"
+    monkeypatch.setattr("memsearch.config.GLOBAL_CONFIG_PATH", cfg_path)
+    monkeypatch.setattr("memsearch.config.PROJECT_CONFIG_PATH", tmp_path / "nope.toml")
+
+    set_config_value("authority_rerank.floor_ratio", "0.4")
+    data = load_config_file(cfg_path)
+    assert data["authority_rerank"]["floor_ratio"] == 0.4
+    assert isinstance(data["authority_rerank"]["floor_ratio"], float)
+
+    cfg = resolve_config()
+    assert cfg.authority_rerank.floor_ratio == 0.4
+    assert isinstance(cfg.authority_rerank.floor_ratio, float)

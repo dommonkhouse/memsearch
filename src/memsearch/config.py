@@ -33,7 +33,11 @@ _INT_FIELDS = {
     "batch_size",
     "min_interval_hours",
     "request_timeout_seconds",
+    "stale_after_days",
+    "half_life_days",
 }
+# Fields that should be parsed as float when set via CLI strings
+_FLOAT_FIELDS = {"floor_ratio", "recency_floor"}
 _BOOL_FIELDS = {"enabled"}
 
 
@@ -76,6 +80,33 @@ class WatchConfig:
 @dataclass
 class RerankerConfig:
     model: str = ""  # empty = disabled; set to model ID to enable
+
+
+@dataclass
+class CitationConfig:
+    author: str = ""  # "" => CLI display falls back to a generic owner label; Dom sets his identity in config
+    scope: str = "private"  # team seam: system/team/client/private
+    stale_after_days: int = 14
+
+
+@dataclass
+class AuthorityRerankConfig:
+    enabled: bool = True
+    half_life_days: int = 14
+    floor_ratio: float = 0.3
+    recency_floor: float = 0.7
+    # authority_weights (nested table) is edited via the config file directly, not `memsearch config set`.
+    authority_weights: dict[str, float] = field(
+        default_factory=lambda: {
+            "MEMORY.md": 2.0,
+            "SOUL.md": 1.5,
+            "USER.md": 1.5,
+            "linear/": 1.1,
+            ".memsearch/memory/": 1.0,
+            "imported-chats/": 0.8,
+            "transcripts/": 0.8,
+        }
+    )
 
 
 @dataclass
@@ -183,6 +214,8 @@ class MemSearchConfig:
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     watch: WatchConfig = field(default_factory=WatchConfig)
     reranker: RerankerConfig = field(default_factory=RerankerConfig)
+    citation: CitationConfig = field(default_factory=CitationConfig)
+    authority_rerank: AuthorityRerankConfig = field(default_factory=AuthorityRerankConfig)
     graphiti: GraphitiConfig = field(default_factory=GraphitiConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     prompts: PromptsConfig = field(default_factory=PromptsConfig)
@@ -197,6 +230,8 @@ _SECTION_CLASSES: dict[str, type] = {
     "chunking": ChunkingConfig,
     "watch": WatchConfig,
     "reranker": RerankerConfig,
+    "citation": CitationConfig,
+    "authority_rerank": AuthorityRerankConfig,
     "graphiti": GraphitiConfig,
     "llm": LLMConfig,
     "prompts": PromptsConfig,
@@ -514,6 +549,8 @@ def set_config_value(key: str, value: Any, *, project: bool = False) -> None:
     # Auto-convert int fields
     if field_name in _INT_FIELDS and isinstance(value, str):
         value = int(value)
+    if field_name in _FLOAT_FIELDS and isinstance(value, str):
+        value = float(value)
     if field_name in _BOOL_FIELDS and isinstance(value, str):
         normalized = value.strip().lower()
         if normalized in {"1", "true", "yes", "on"}:
