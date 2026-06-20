@@ -41,3 +41,30 @@ def days_since(d: date | None, *, today: date) -> int | None:
     if d is None:
         return None
     return max((today - d).days, 0)
+
+
+def resolve_attribution(result: dict[str, Any], *, author: str, scope: str) -> tuple[str, str]:
+    """Return (author, scope). TEAM SEAM: today returns the configured constant
+    for every chunk (solo). When MemSearch goes multi-user this is the ONE
+    function that changes (read per-chunk stored author/owner here). `result`
+    is accepted now (unused) so the team change needs no call-site edits."""
+    return author, scope
+
+
+def enrich(results, *, author, scope, today, stale_after_days):
+    enriched = []
+    for r in results:
+        a, s = resolve_attribution(r, author=author, scope=scope)
+        d = extract_file_date(_source_of(r))
+        age = days_since(d, today=today)
+        enriched.append(
+            {
+                **r,
+                "author": a,
+                "scope": s,
+                "date": d.isoformat() if d else None,
+                "days_since": age,
+                "stale": (age is not None and age > stale_after_days),
+            }
+        )
+    return enriched
