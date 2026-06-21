@@ -39,12 +39,8 @@ def source_freshness_report(
     run_proof: bool = False,
 ) -> dict[str, Any]:
     sources = [
-        _source_report(
-            "linear", state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof
-        ),
-        _source_report(
-            "manus", state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof
-        ),
+        _source_report("linear", state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof),
+        _source_report("manus", state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof),
     ]
     return {
         "sources": [source.to_json() for source in sources],

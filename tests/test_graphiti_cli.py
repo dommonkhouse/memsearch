@@ -426,10 +426,7 @@ def test_graph_candidate_report_writes_report(tmp_path):
     seed = tmp_path / "docs" / "graphiti-curated-seeds" / "seed.md"
     output = tmp_path / "report.md"
     seed.parent.mkdir(parents=True)
-    seed.write_text(
-        "### Current\n\nClassification: current\n\nGraphiti uses FalkorDB.\n\nEvidence: docs/graphiti-falkordb.md\n",
-        encoding="utf-8",
-    )
+    seed.write_text("### Current\n\nClassification: current\n\nGraphiti uses FalkorDB.\n\nEvidence: docs/graphiti-falkordb.md\n", encoding="utf-8")
 
     result = CliRunner().invoke(cli, ["graph-candidate-report", str(seed), "--output", str(output)])
 
@@ -457,14 +454,7 @@ def test_graph_clear_group_requires_matching_confirmation(monkeypatch, tmp_path)
 
     result = CliRunner().invoke(
         cli,
-        [
-            "graph-clear-group",
-            "--group-id",
-            "ms_memsearch_active_curated_v1",
-            "--confirm-group-id",
-            "wrong",
-            "--execute",
-        ],
+        ["graph-clear-group", "--group-id", "ms_memsearch_active_curated_v1", "--confirm-group-id", "wrong", "--execute"],
     )
 
     assert result.exit_code == 1

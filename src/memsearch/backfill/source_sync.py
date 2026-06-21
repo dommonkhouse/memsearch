@@ -79,9 +79,7 @@ def sync_linear(
 
     with source_lock(state_dir, "linear"):
         issues = client.updated_issues(since=effective_since, limit=max_issues)
-        export_summary = write_linear_export(
-            run_dir, issues=issues, machine=machine, since=effective_since, run_id=run_id
-        )
+        export_summary = write_linear_export(run_dir, issues=issues, machine=machine, since=effective_since, run_id=run_id)
         card_summary = write_linear_cards(run_dir, card_dir, machine=machine, force=True)
         hits = scan_path_for_secrets(card_dir)
         if hits:
@@ -117,13 +115,7 @@ def sync_linear(
             output_dir=str(card_dir),
             state_path=str(path),
             message="state update preview" if dry_run else "state updated",
-            steps=(
-                "fetch updated Linear issues",
-                "write read-only export",
-                "render cards",
-                "scan cards",
-                "optional index",
-            ),
+            steps=("fetch updated Linear issues", "write read-only export", "render cards", "scan cards", "optional index"),
             index_command=tuple(index_result.command),
         )
 
@@ -167,9 +159,7 @@ def sync_manus(
     tasks = client.iter_tasks(max_tasks=max_tasks)
     snapshots = _task_snapshots(tasks)
     changed_task_ids = _changed_task_ids(snapshots, state)
-    date_filtered_task_ids = _date_filtered_task_ids(
-        tasks, created_since=created_since, updated_since=explicit_updated_since
-    )
+    date_filtered_task_ids = _date_filtered_task_ids(tasks, created_since=created_since, updated_since=explicit_updated_since)
     has_date_filter = created_since is not None or explicit_updated_since is not None
     selected_task_ids = date_filtered_task_ids if has_date_filter else (None if export_all else changed_task_ids)
     if not export_all and not has_date_filter and not state.task_snapshots:
@@ -238,9 +228,7 @@ def sync_manus(
         card_hits = scan_path_for_secrets(card_root)
         if card_hits:
             raise RuntimeError(f"Manus card scan found {len(card_hits)} hit(s)")
-        index_result = index_markdown_cards(
-            card_root / "memory" / "manus_cloud" / "manus_api", collection=collection, dry_run=not index
-        )
+        index_result = index_markdown_cards(card_root / "memory" / "manus_cloud" / "manus_api", collection=collection, dry_run=not index)
         if index_result.returncode != 0:
             raise RuntimeError(f"Manus indexing failed: {index_result.stderr or index_result.stdout}")
         if has_date_filter:
@@ -284,26 +272,18 @@ def _run_id(source: str) -> str:
 
 
 def _task_snapshots(tasks: list[dict[str, Any]]) -> dict[str, str]:
-    return {
-        str(task.get("id")): str(task.get("updated_at") or task.get("updatedAt") or "")
-        for task in tasks
-        if task.get("id")
-    }
+    return {str(task.get("id")): str(task.get("updated_at") or task.get("updatedAt") or "") for task in tasks if task.get("id")}
 
 
 def _changed_task_ids(snapshots: dict[str, str], state: SourceSyncState) -> list[str]:
-    return sorted(
-        task_id for task_id, updated_at in snapshots.items() if state.task_snapshots.get(task_id) != updated_at
-    )
+    return sorted(task_id for task_id, updated_at in snapshots.items() if state.task_snapshots.get(task_id) != updated_at)
 
 
 def _timestamps_reliable(tasks: list[dict[str, Any]]) -> bool:
     return all(str(task.get("updated_at") or task.get("updatedAt") or "").strip() for task in tasks)
 
 
-def _date_filtered_task_ids(
-    tasks: list[dict[str, Any]], *, created_since: str | None, updated_since: str | None
-) -> list[str] | None:
+def _date_filtered_task_ids(tasks: list[dict[str, Any]], *, created_since: str | None, updated_since: str | None) -> list[str] | None:
     if created_since is None and updated_since is None:
         return None
     created_cutoff = _parse_timestamp(created_since) if created_since else None
@@ -313,13 +293,9 @@ def _date_filtered_task_ids(
         task_id = str(task.get("id") or "")
         if not task_id:
             continue
-        if created_cutoff is not None and not _task_timestamp_at_or_after(
-            task, ("created_at", "createdAt"), created_cutoff
-        ):
+        if created_cutoff is not None and not _task_timestamp_at_or_after(task, ("created_at", "createdAt"), created_cutoff):
             continue
-        if updated_cutoff is not None and not _task_timestamp_at_or_after(
-            task, ("updated_at", "updatedAt"), updated_cutoff
-        ):
+        if updated_cutoff is not None and not _task_timestamp_at_or_after(task, ("updated_at", "updatedAt"), updated_cutoff):
             continue
         selected.append(task_id)
     return sorted(selected)

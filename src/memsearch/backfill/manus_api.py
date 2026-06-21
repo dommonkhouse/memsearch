@@ -44,23 +44,17 @@ class ManusAttachmentDownload:
 
 
 class ManusApiClient:
-    def __init__(
-        self, api_key: str | None = None, *, base_url: str = API_BASE_URL, transport: Any | None = None
-    ) -> None:
+    def __init__(self, api_key: str | None = None, *, base_url: str = API_BASE_URL, transport: Any | None = None) -> None:
         self.api_key = api_key if api_key is not None else os.environ.get("MANUS_API_KEY", "")
         if not self.api_key:
             raise ManusApiError("MANUS_API_KEY is required")
         self.base_url = base_url.rstrip("/")
         self._transport = transport
 
-    def list_tasks_page(
-        self, *, limit: int = 100, cursor: str = "", order: str = "desc", scope: str = "all"
-    ) -> dict[str, Any]:
+    def list_tasks_page(self, *, limit: int = 100, cursor: str = "", order: str = "desc", scope: str = "all") -> dict[str, Any]:
         return self._get_json("task.list", {"limit": limit, "cursor": cursor, "order": order, "scope": scope})
 
-    def iter_tasks(
-        self, *, page_limit: int = 100, order: str = "desc", scope: str = "all", max_tasks: int | None = None
-    ) -> list[dict[str, Any]]:
+    def iter_tasks(self, *, page_limit: int = 100, order: str = "desc", scope: str = "all", max_tasks: int | None = None) -> list[dict[str, Any]]:
         tasks: list[dict[str, Any]] = []
         cursor = ""
         while True:
@@ -199,9 +193,7 @@ def export_manus_run(
     memory_dir = run_dir / "memory"
     tasks_dir.mkdir(parents=True, exist_ok=True)
 
-    existing_manifest = (
-        _read_json(run_dir / "manifest.json") if resume and (run_dir / "manifest.json").is_file() else {}
-    )
+    existing_manifest = _read_json(run_dir / "manifest.json") if resume and (run_dir / "manifest.json").is_file() else {}
     manifest_tasks_by_id = {str(task.get("id") or ""): task for task in existing_manifest.get("tasks", [])}
     errors_by_task = {str(error.get("task_id") or ""): error for error in existing_manifest.get("errors", [])}
     tasks = client.iter_tasks(max_tasks=limit)
@@ -339,9 +331,7 @@ def verify_manus_run(run_dir: Path) -> list[str]:
     return errors
 
 
-def promote_manus_run(
-    run_dir: Path, output_dir: Path, *, force: bool = False, file_soft_cap: int = 500_000
-) -> dict[str, Any]:
+def promote_manus_run(run_dir: Path, output_dir: Path, *, force: bool = False, file_soft_cap: int = 500_000) -> dict[str, Any]:
     run_dir = run_dir.expanduser()
     output_dir = output_dir.expanduser()
     if not run_dir.is_dir():
@@ -365,9 +355,7 @@ def promote_manus_run(
         for record in hit_records
         if record.get("source_kind") == "attachment" and record.get("_source_path")
     }
-    public_hit_records = [
-        {key: value for key, value in record.items() if not key.startswith("_")} for record in hit_records
-    ]
+    public_hit_records = [{key: value for key, value in record.items() if not key.startswith("_")} for record in hit_records]
 
     sections_by_month: dict[str, list[tuple[str, str, str]]] = defaultdict(list)
     source_task_map: dict[str, dict[str, Any]] = {}
@@ -412,9 +400,7 @@ def promote_manus_run(
         sections_by_month[month].append((task_id, section, redact_secrets(_relative_or_name(task_dir, run_dir))))
         rendered_task_count += 1
 
-    markdown_files, source_task_map = _write_promoted_markdown(
-        output_dir, sections_by_month, file_soft_cap=file_soft_cap
-    )
+    markdown_files, source_task_map = _write_promoted_markdown(output_dir, sections_by_month, file_soft_cap=file_soft_cap)
 
     promotion_manifest = {
         "run_id": run_id,
@@ -586,19 +572,10 @@ def _render_manus_memsearch_card(title: str, body: str, full_transcript_path: Pa
     ]:
         value = _extract_line_value(preamble, label)
         if value:
-            display_label = (
-                "Message events"
-                if label == "Manus message events"
-                else "Artefacts"
-                if label == "Manus artefacts"
-                else label
-            )
+            display_label = "Message events" if label == "Manus message events" else "Artefacts" if label == "Manus artefacts" else label
             lines.append(f"- {display_label}: {redact_secrets(value)}")
     if tool_counts:
-        lines.append(
-            "- Tools used: "
-            + ", ".join(f"{redact_secrets(tool)} ({count})" for tool, count in tool_counts.most_common(10))
-        )
+        lines.append("- Tools used: " + ", ".join(f"{redact_secrets(tool)} ({count})" for tool, count in tool_counts.most_common(10)))
     lines.append("")
 
     if users:

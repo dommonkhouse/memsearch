@@ -120,9 +120,7 @@ def _load_historical_manifest(
         session_id = str(raw.get("session_id") or raw.get("conversation_key") or source_path)
         product = str(raw.get("product") or "")
         machine = normalise_machine_name(str(raw.get("machine") or ""))
-        anchor = HistoricalSourceAnchor(
-            product=product, session_id=session_id, transcript_path=source_path, machine=machine
-        )
+        anchor = HistoricalSourceAnchor(product=product, session_id=session_id, transcript_path=source_path, machine=machine)
         by_source_path[source_path] = anchor
         by_transcript_path[source_path] = anchor
         by_session_id[session_id] = anchor

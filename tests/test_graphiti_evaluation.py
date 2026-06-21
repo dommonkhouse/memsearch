@@ -230,10 +230,9 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "Zilliz Cloud",
         "API key",
     )
-    assert (
-        "Milvus Lite is recommended to be used with Windows"
-        in cases["relationship-installation-backend-profiles"].graph_must_not_contain
-    )
+    assert "Milvus Lite is recommended to be used with Windows" in cases[
+        "relationship-installation-backend-profiles"
+    ].graph_must_not_contain
     assert cases["relationship-dimension-mismatch-recovery"].graph_must_contain == (
         "dimension mismatch",
         "embedding provider/model",
@@ -269,13 +268,12 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "Zilliz Cloud",
         "WSL2",
     )
-    assert (
-        "Milvus Lite works natively on Windows" in cases["negative-windows-milvus-lite-native"].graph_must_not_contain
-    )
-    assert (
-        "Milvus Lite is recommended to be used with Windows"
-        in cases["negative-windows-milvus-lite-native"].graph_must_not_contain
-    )
+    assert "Milvus Lite works natively on Windows" in cases[
+        "negative-windows-milvus-lite-native"
+    ].graph_must_not_contain
+    assert "Milvus Lite is recommended to be used with Windows" in cases[
+        "negative-windows-milvus-lite-native"
+    ].graph_must_not_contain
     assert cases["relationship-embedding-evaluation-default"].graph_must_contain == (
         "gpahal/bge-m3-onnx-int8",
         "Recall@5",
@@ -528,7 +526,9 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "content-hash dedup",
         "rebuild",
     )
-    assert "Milvus is the source of truth" in cases["relationship-derived-index-rebuild-safety"].graph_must_not_contain
+    assert "Milvus is the source of truth" in cases[
+        "relationship-derived-index-rebuild-safety"
+    ].graph_must_not_contain
     assert cases["relationship-graphiti-sidecar-cli-routing"].graph_must_contain == (
         "graph-status",
         "graph-index",
@@ -554,10 +554,9 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "trailing slash",
         "DNS-rebinding",
     )
-    assert (
-        "should use /mcp/ with a trailing slash"
-        in cases["relationship-graphiti-mcp-route-host-header"].graph_must_not_contain
-    )
+    assert "should use /mcp/ with a trailing slash" in cases[
+        "relationship-graphiti-mcp-route-host-header"
+    ].graph_must_not_contain
     assert cases["relationship-graphiti-runtime-isolation"].graph_must_contain == (
         "Mac Mini",
         "dedicated Colima profile",
@@ -612,7 +611,9 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "Tailscale Serve",
         "graphiti-falkordb.md",
     )
-    assert "127.0.0.1:8018 is current" in cases["relationship-batch020-macbook-pilot-historical"].graph_must_not_contain
+    assert "127.0.0.1:8018 is current" in cases[
+        "relationship-batch020-macbook-pilot-historical"
+    ].graph_must_not_contain
     assert cases["relationship-batch021-platform-index-boundaries"].graph_must_contain == (
         "Claude Code",
         "forked subagent",
@@ -661,10 +662,9 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "derived capture state",
         "session+turn anchor",
     )
-    assert (
-        "opencode-turns.db is the source of truth"
-        in cases["relationship-opencode-sidecar-boundary"].graph_must_not_contain
-    )
+    assert "opencode-turns.db is the source of truth" in cases[
+        "relationship-opencode-sidecar-boundary"
+    ].graph_must_not_contain
     assert cases["relationship-claude-status-api-key-troubleshooting"].graph_must_contain == (
         "Claude Code",
         "API key",

@@ -25,15 +25,10 @@ def test_probe_manus_classifies_indexeddb_cache_and_unknown(tmp_path: Path) -> N
 
 
 def test_probe_manus_returns_skipped_manifest_entry(tmp_path: Path) -> None:
-    path = (
-        tmp_path
-        / "Library/Application Support/Google/Chrome/Default/IndexedDB/https_manus.im_0.indexeddb.leveldb/000001.ldb"
-    )
+    path = tmp_path / "Library/Application Support/Google/Chrome/Default/IndexedDB/https_manus.im_0.indexeddb.leveldb/000001.ldb"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"data")
-    source = SourceFile.from_path(
-        path, product="manus_indexeddb", machine="Test Mac", source_kind="indexeddb", is_fallback=True
-    )
+    source = SourceFile.from_path(path, product="manus_indexeddb", machine="Test Mac", source_kind="indexeddb", is_fallback=True)
 
     entry = probe_manus_source(source)
 
@@ -91,15 +86,7 @@ def test_parse_manus_task_turns_fixture_into_conversation(tmp_path: Path) -> Non
         ],
         source_path=source_path,
         machine="Test Mac",
-        artifacts=[
-            {
-                "filename": "notes.md",
-                "status": "downloaded",
-                "bytes": 10,
-                "sha256": "abc",
-                "local_path": "attachments/notes.md",
-            }
-        ],
+        artifacts=[{"filename": "notes.md", "status": "downloaded", "bytes": 10, "sha256": "abc", "local_path": "attachments/notes.md"}],
     )
 
     assert conversation.product == "manus_api"

@@ -45,11 +45,7 @@ def test_pilot_cli_writes_markdown_and_manifest_without_duplicates(tmp_path: Pat
         home / ".codex/sessions/2026/06/01/rollout.jsonl",
         [
             {"timestamp": "2026-06-01T10:00:00Z", "type": "session_meta", "payload": {"id": "codex-1"}},
-            {
-                "timestamp": "2026-06-01T10:00:01Z",
-                "type": "event_msg",
-                "payload": {"type": "user_message", "message": "Hello"},
-            },
+            {"timestamp": "2026-06-01T10:00:01Z", "type": "event_msg", "payload": {"type": "user_message", "message": "Hello"}},
             {
                 "timestamp": "2026-06-01T10:00:02Z",
                 "type": "event_msg",
@@ -63,9 +59,7 @@ def test_pilot_cli_writes_markdown_and_manifest_without_duplicates(tmp_path: Pat
     markdown = output / "test-mac/codex/2026-06.md"
     first_manifest = manifest.read_text(encoding="utf-8")
     first_markdown = markdown.read_text(encoding="utf-8")
-    second = run_backfill(
-        "pilot", "--home", str(home), "--machine", "Test Mac", "--limit", "2", "--output", str(output)
-    )
+    second = run_backfill("pilot", "--home", str(home), "--machine", "Test Mac", "--limit", "2", "--output", str(output))
 
     assert json.loads(first.stdout)["converted"] == 1
     assert json.loads(second.stdout)["converted"] == 0
@@ -95,17 +89,9 @@ def test_convert_cli_is_byte_identical_on_second_run(tmp_path: Path) -> None:
     )
 
     run_backfill("convert", "--home", str(home), "--machine", "Test Mac", "--output", str(output))
-    before = {
-        path.relative_to(output): path.read_text(encoding="utf-8")
-        for path in sorted(output.rglob("*"))
-        if path.is_file()
-    }
+    before = {path.relative_to(output): path.read_text(encoding="utf-8") for path in sorted(output.rglob("*")) if path.is_file()}
     run_backfill("convert", "--home", str(home), "--machine", "Test Mac", "--output", str(output))
-    after = {
-        path.relative_to(output): path.read_text(encoding="utf-8")
-        for path in sorted(output.rglob("*"))
-        if path.is_file()
-    }
+    after = {path.relative_to(output): path.read_text(encoding="utf-8") for path in sorted(output.rglob("*")) if path.is_file()}
 
     assert before
     assert after == before
@@ -138,9 +124,7 @@ def test_pilot_limit_applies_per_product(tmp_path: Path) -> None:
             ],
         )
 
-    result = run_backfill(
-        "pilot", "--home", str(home), "--machine", "Test Mac", "--limit", "1", "--output", str(output)
-    )
+    result = run_backfill("pilot", "--home", str(home), "--machine", "Test Mac", "--limit", "1", "--output", str(output))
     payload = json.loads(result.stdout)
 
     assert payload["converted"] == 2

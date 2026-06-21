@@ -94,7 +94,8 @@ def test_historical_manifest_and_markdown_anchors_mark_already_imported(tmp_path
         encoding="utf-8",
     )
     (historical / "2026-05.md").write_text(
-        f"<!-- backfill-agent:codex session:codex-1 transcript:{source_from_anchor} machine:Dominics-Mac-mini -->\n",
+        "<!-- backfill-agent:codex session:codex-1 "
+        f"transcript:{source_from_anchor} machine:Dominics-Mac-mini -->\n",
         encoding="utf-8",
     )
 
@@ -144,17 +145,13 @@ def test_preferred_sources_use_exports_before_cache_and_dedupe_by_conversation_k
     cache = SourceFile(path=Path("/cache/chatgpt"), product="chatgpt_cache", machine="MacBook", is_fallback=True)
     export = SourceFile(path=Path("/export/chatgpt"), product="chatgpt_export", machine="MacBook", is_fallback=False)
     claude_cache = SourceFile(path=Path("/cache/claude"), product="claude_cache", machine="MacBook", is_fallback=True)
-    claude_export = SourceFile(
-        path=Path("/export/claude"), product="claude_export", machine="MacBook", is_fallback=False
-    )
+    claude_export = SourceFile(path=Path("/export/claude"), product="claude_export", machine="MacBook", is_fallback=False)
 
     conversations = [
         Conversation(source=cache, product="chatgpt_cache", machine="MacBook", platform_id="gpt-1", turns=[]),
         Conversation(source=export, product="chatgpt_export", machine="MacBook", platform_id="gpt-1", turns=[]),
         Conversation(source=claude_cache, product="claude_cache", machine="MacBook", platform_id="claude-1", turns=[]),
-        Conversation(
-            source=claude_export, product="claude_export", machine="MacBook", platform_id="claude-1", turns=[]
-        ),
+        Conversation(source=claude_export, product="claude_export", machine="MacBook", platform_id="claude-1", turns=[]),
         Conversation(
             source=SourceFile(path=Path("/mini/manus"), product="manus_cache", machine="Mini", is_fallback=True),
             product="manus_cache",

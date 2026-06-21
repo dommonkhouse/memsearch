@@ -51,11 +51,7 @@ def test_parse_codex_skips_function_calls_outputs_and_reasoning(tmp_path: Path) 
             {"type": "event_msg", "payload": {"type": "user_message", "message": "Check the journal"}},
             {
                 "type": "response_item",
-                "payload": {
-                    "type": "function_call",
-                    "name": "exec_command",
-                    "arguments": json.dumps({"cmd": "tail memory.md"}),
-                },
+                "payload": {"type": "function_call", "name": "exec_command", "arguments": json.dumps({"cmd": "tail memory.md"})},
             },
             {
                 "type": "response_item",
@@ -87,11 +83,7 @@ def test_parse_codex_uses_response_item_messages_as_fallback(tmp_path: Path) -> 
             {
                 "timestamp": "2026-06-01T10:00:01Z",
                 "type": "response_item",
-                "payload": {
-                    "type": "message",
-                    "role": "user",
-                    "content": [{"type": "input_text", "text": "Fallback user"}],
-                },
+                "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Fallback user"}]},
             },
             {
                 "timestamp": "2026-06-01T10:00:02Z",
@@ -99,10 +91,7 @@ def test_parse_codex_uses_response_item_messages_as_fallback(tmp_path: Path) -> 
                 "payload": {
                     "type": "message",
                     "role": "assistant",
-                    "content": [
-                        {"type": "output_text", "text": "Fallback assistant"},
-                        {"type": "text", "text": "Second line"},
-                    ],
+                    "content": [{"type": "output_text", "text": "Fallback assistant"}, {"type": "text", "text": "Second line"}],
                 },
             },
         ],
@@ -124,20 +113,12 @@ def test_parse_codex_does_not_duplicate_response_item_messages_when_events_exist
             {"type": "event_msg", "payload": {"type": "user_message", "message": "Event user"}},
             {
                 "type": "response_item",
-                "payload": {
-                    "type": "message",
-                    "role": "user",
-                    "content": [{"type": "input_text", "text": "Event user"}],
-                },
+                "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Event user"}]},
             },
             {"type": "event_msg", "payload": {"type": "agent_message", "message": "Event assistant"}},
             {
                 "type": "response_item",
-                "payload": {
-                    "type": "message",
-                    "role": "assistant",
-                    "content": [{"type": "output_text", "text": "Event assistant"}],
-                },
+                "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "Event assistant"}]},
             },
         ],
     )

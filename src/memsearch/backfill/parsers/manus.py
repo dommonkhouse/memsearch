@@ -97,9 +97,7 @@ def parse_staged_manus_task(task_dir: Path, *, machine: str) -> Conversation:
             if entry.get("id") == task.get("id"):
                 artifacts = entry.get("attachments", [])
                 break
-    return parse_manus_task(
-        task=task, messages=messages, source_path=messages_path, machine=machine, artifacts=artifacts
-    )
+    return parse_manus_task(task=task, messages=messages, source_path=messages_path, machine=machine, artifacts=artifacts)
 
 
 def _turn_from_message(message: dict[str, Any]) -> Turn:
@@ -112,14 +110,7 @@ def _turn_from_message(message: dict[str, Any]) -> Turn:
             return Turn(role=role, text=text, timestamp=timestamp)
     if event_type == "status_update" and message.get("status_update"):
         return Turn(role="status", text=json.dumps(message["status_update"], sort_keys=True), timestamp=timestamp)
-    if event_type in {
-        "tool_used",
-        "plan_update",
-        "new_plan_step",
-        "explanation",
-        "structured_output_result",
-        "user_stop",
-    }:
+    if event_type in {"tool_used", "plan_update", "new_plan_step", "explanation", "structured_output_result", "user_stop"}:
         payload = message.get(event_type, {})
         return Turn(role=event_type, text=json.dumps(payload, sort_keys=True), timestamp=timestamp)
     return Turn(role=event_type or "event", text=json.dumps(message, sort_keys=True), timestamp=timestamp)

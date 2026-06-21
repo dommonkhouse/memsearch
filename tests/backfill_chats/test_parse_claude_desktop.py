@@ -39,9 +39,7 @@ def test_parse_claude_desktop_local_agent_jsonl_keeps_user_assistant_text(tmp_pa
         ],
     )
 
-    conversation = parse_claude_desktop(
-        SourceFile.from_path(transcript, product="claude_desktop_local_agent_jsonl", machine="Test Mac")
-    )
+    conversation = parse_claude_desktop(SourceFile.from_path(transcript, product="claude_desktop_local_agent_jsonl", machine="Test Mac"))
 
     assert conversation.product == "claude_desktop_cowork"
     assert conversation.platform_id == "local-1"
@@ -52,9 +50,7 @@ def test_parse_claude_desktop_local_agent_jsonl_keeps_user_assistant_text(tmp_pa
 
 
 def test_parse_claude_desktop_excludes_audit_logs_subagents_and_code_sessions(tmp_path: Path) -> None:
-    audit = (
-        tmp_path / "Library/Application Support/Claude/local-agent-mode-sessions/account/project/local_1/audit.jsonl"
-    )
+    audit = tmp_path / "Library/Application Support/Claude/local-agent-mode-sessions/account/project/local_1/audit.jsonl"
     subagent = (
         tmp_path
         / "Library/Application Support/Claude/local-agent-mode-sessions/account/project/local_1/.claude/projects/foo/subagents/agent.jsonl"
@@ -89,17 +85,11 @@ def test_parse_claude_desktop_render_redacts_secret_like_turn_values(tmp_path: P
         transcript,
         [
             {"type": "user", "sessionId": "local-1", "message": {"content": "Use OPENAI_API_KEY=abc123"}},
-            {
-                "type": "assistant",
-                "sessionId": "local-1",
-                "message": {"content": [{"type": "text", "text": "Bearer sk-secret"}]},
-            },
+            {"type": "assistant", "sessionId": "local-1", "message": {"content": [{"type": "text", "text": "Bearer sk-secret"}]}},
         ],
     )
 
-    conversation = parse_claude_desktop(
-        SourceFile.from_path(transcript, product="claude_desktop_local_agent_jsonl", machine="Test Mac")
-    )
+    conversation = parse_claude_desktop(SourceFile.from_path(transcript, product="claude_desktop_local_agent_jsonl", machine="Test Mac"))
     markdown = render_conversation(conversation)
 
     assert "abc123" not in markdown

@@ -268,12 +268,7 @@ DEFAULT_GRAPH_EVALUATION_CASES = (
         name="relationship-openclaw-permissions",
         kind="relationship",
         query="What permissions does the OpenClaw MemSearch plugin require and why?",
-        graph_must_contain=(
-            "allowConversationAccess",
-            "allowPromptInjection",
-            "read conversation turns",
-            "inject recall context",
-        ),
+        graph_must_contain=("allowConversationAccess", "allowPromptInjection", "read conversation turns", "inject recall context"),
     ),
     GraphEvaluationCase(
         name="relationship-codex-installer-changes",
