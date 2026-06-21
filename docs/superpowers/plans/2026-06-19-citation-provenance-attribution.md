@@ -1,6 +1,6 @@
 # Citation, Provenance & Attribution for MemSearch Recall — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Make every MemSearch recall result carry a trustworthy citation — source path + line range + date + age + "decided by" attribution + a staleness flag — and rank results so the freshest, most authoritative memory wins, porting Simon Scrapes' Agentic OS citation/reranking model into MemSearch's native Python pipeline.
 
@@ -61,7 +61,7 @@
 
 **Files:** Create `src/memsearch/provenance.py`; Test `tests/test_provenance.py`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_provenance.py
@@ -88,8 +88,8 @@ def test_days_since_clamps_future_to_zero():
     assert days_since(date(2026, 6, 25), today=date(2026, 6, 19)) == 0
 ```
 
-- [ ] **Step 2: Run → FAIL** (`uv run pytest tests/test_provenance.py -v`).
-- [ ] **Step 3: Implement** (port of `agentic-os/scripts/lib/reranker.py:82-93`, injectable `today`)
+- [x] **Step 2: Run → FAIL** (`uv run pytest tests/test_provenance.py -v`).
+- [x] **Step 3: Implement** (port of `agentic-os/scripts/lib/reranker.py:82-93`, injectable `today`)
 
 ```python
 # src/memsearch/provenance.py
@@ -137,15 +137,15 @@ def days_since(d: date | None, *, today: date) -> int | None:
     return max((today - d).days, 0)
 ```
 
-- [ ] **Step 4: Run → PASS.**
-- [ ] **Step 5: Full gate** — `uv run pytest && uv run ruff check src tests && uv run ruff format --check src tests`.
-- [ ] **Step 6: Commit (feature branch)** — `git commit -m "feat(provenance): date extraction + age helpers (MON-XXX)"`
+- [x] **Step 4: Run → PASS.**
+- [x] **Step 5: Full gate** — `uv run pytest && uv run ruff check src tests && uv run ruff format --check src tests`.
+- [x] **Step 6: Commit (feature branch)** — `git commit -m "feat(provenance): date extraction + age helpers (MON-XXX)"`
 
 ### Task 2: Attribution resolver (team seam) + enrichment
 
 **Files:** Modify `src/memsearch/provenance.py`; Test `tests/test_provenance.py`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```python
 from datetime import date
@@ -177,8 +177,8 @@ def test_enrich_undated_source_is_not_stale_and_date_none():
     assert out[0]["date"] is None and out[0]["days_since"] is None and out[0]["stale"] is False
 ```
 
-- [ ] **Step 2: Run → FAIL.**
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run → FAIL.**
+- [x] **Step 3: Implement**
 
 ```python
 def resolve_attribution(result: dict[str, Any], *, author: str, scope: str) -> tuple[str, str]:
@@ -201,13 +201,13 @@ def enrich(results, *, author, scope, today, stale_after_days):
     return enriched
 ```
 
-- [ ] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(provenance): attribution resolver seam + enrichment (MON-XXX)"`
+- [x] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(provenance): attribution resolver seam + enrichment (MON-XXX)"`
 
 ### Task 3: Authority/recency/floor reranker (provenance)
 
 **Files:** Modify `src/memsearch/provenance.py`; Test `tests/test_provenance.py`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```python
 from memsearch.provenance import authority_multiplier, recency_factor, rerank_by_authority_recency
@@ -246,8 +246,8 @@ def test_rerank_tolerates_missing_or_bad_score():
     assert len(out) >= 1
 ```
 
-- [ ] **Step 2: Run → FAIL.**
-- [ ] **Step 3: Implement** — faithful port of `agentic-os/scripts/lib/reranker.py:49-159`, `today` injected:
+- [x] **Step 2: Run → FAIL.**
+- [x] **Step 3: Implement** — faithful port of `agentic-os/scripts/lib/reranker.py:49-159`, `today` injected:
 
 ```python
 def authority_multiplier(source, weights):
@@ -298,7 +298,7 @@ def rerank_by_authority_recency(results, *, weights, half_life_days, recency_flo
 ```
 (All-zero scores → `threshold=0`, `0>=0` keeps everything — no crash, no empty result.)
 
-- [ ] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(provenance): authority/recency/floor reranker (MON-XXX)"`
+- [x] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(provenance): authority/recency/floor reranker (MON-XXX)"`
 
 ### Task 4: Config — `CitationConfig` + `AuthorityRerankConfig` + float coercion
 
@@ -306,9 +306,9 @@ def rerank_by_authority_recency(results, *, weights, half_life_days, recency_flo
 
 **Verified plumbing:** a flat-field dataclass needs registering in `MemSearchConfig` (`178-190`) + `_SECTION_CLASSES` (`193-204`) only — `_dict_to_config`'s generic `cls(**filtered)` handles scalar and plain-`dict` fields (no `_dict_to_llm_config`-style special case). **`_FLOAT_FIELDS` does not exist and must be added** (`config.py` has only `_INT_FIELDS`/`_BOOL_FIELDS`); without it `memsearch config set authority_rerank.floor_ratio 0.4` stores `"0.4"` (str) → `top * floor_ratio` raises `TypeError`.
 
-- [ ] **Step 1: Failing test** — `CitationConfig`/`AuthorityRerankConfig` defaults; TOML override of `stale_after_days`, `half_life_days`, `floor_ratio`; and `set_config_value("authority_rerank.floor_ratio", "0.4")` round-trips to `float` 0.4.
-- [ ] **Step 2: Run → FAIL.**
-- [ ] **Step 3: Implement**
+- [x] **Step 1: Failing test** — `CitationConfig`/`AuthorityRerankConfig` defaults; TOML override of `stale_after_days`, `half_life_days`, `floor_ratio`; and `set_config_value("authority_rerank.floor_ratio", "0.4")` round-trips to `float` 0.4.
+- [x] **Step 2: Run → FAIL.**
+- [x] **Step 3: Implement**
 
 ```python
 @dataclass
@@ -331,9 +331,9 @@ class AuthorityRerankConfig:
 ```
 Register both in `MemSearchConfig` (`citation`, `authority_rerank`) + `_SECTION_CLASSES`. Add `"stale_after_days"`, `"half_life_days"` to `_INT_FIELDS`; add `_FLOAT_FIELDS = {"floor_ratio", "recency_floor"}` near `_INT_FIELDS` and coerce in `set_config_value` (`514-524`): `if field_name in _FLOAT_FIELDS and isinstance(value, str): value = float(value)`. Comment that `authority_weights` (nested table) is edited via the config file directly, not `memsearch config set`.
 
-- [ ] **Step 4: Run → PASS.** **Step 5: Full gate.**
-- [ ] **Step 6: Setup (Dom's identity, not a library default):** run `uv run memsearch config set citation.author "Dominic Monkhouse (dominicmonkhouse)"` (writes global `~/.memsearch/config.toml`). Verify with `uv run memsearch config get citation.author`. This is the one place Dom's identity lives.
-- [ ] **Step 7: Commit** `"feat(config): CitationConfig + AuthorityRerankConfig + float coercion (MON-XXX)"`
+- [x] **Step 4: Run → PASS.** **Step 5: Full gate.**
+- [x] **Step 6: Setup (Dom's identity, not a library default):** run `uv run memsearch config set citation.author "Dominic Monkhouse (dominicmonkhouse)"` (writes global `~/.memsearch/config.toml`). Verify with `uv run memsearch config get citation.author`. This is the one place Dom's identity lives.
+- [x] **Step 7: Commit** `"feat(config): CitationConfig + AuthorityRerankConfig + float coercion (MON-XXX)"`
 
 ### Task 5: Core — `__init__` params + `search()` rewire (candidate window, order, `today`, enrich)
 
@@ -343,14 +343,14 @@ Register both in `MemSearchConfig` (`citation`, `authority_rerank`) + `_SECTION_
 
 **Existing-test regression (verified):** the fake in `tests/test_core_exact_identifiers.py:73-78` sets only `_embedder`/`_store`/`_reranker_model`. The new `search()` reads `_authority_rerank.enabled` and calls `enrich(... self._author, self._citation_scope, self._stale_after_days)`, so that test will `AttributeError` under the full gate. As part of this task, add `_author=""`, `_citation_scope="private"`, `_stale_after_days=14`, `_authority_rerank=AuthorityRerankConfig(enabled=False)` to that existing fake (disabling authority rerank keeps its exact-identifier assertions unchanged).
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
   - `test_search_results_carry_citation_fields` — single dated result; assert `author/date/days_since/stale` (pass explicit `today=date(2026,6,19)`).
   - `test_recent_result_promoted_from_beyond_top_k` — store holds 12 rows; the only fresh-dated row sits at raw index 11; call `search(top_k=5, today=...)` with `authority_enabled=True`; assert the fresh row is in the returned top-5. (Proves `fetch_k` widening + rerank — fails if `fetch_k` isn't widened for authority.)
   - `test_exact_identifier_not_demoted_by_recency` — a stale-dated exact hash match present; assert it stays first (authority rerank skipped on exact path).
   - `test_cross_encoder_composes_with_authority` — set `reranker_model="x"`, `monkeypatch` **`memsearch.reranker.rerank`** (NOT `memsearch.core.rerank` — `search()` uses a function-local `from .reranker import rerank`, so patch the source module) to a stub returning input unsliced; `authority_enabled=True`; assert stub ran AND final order reflects recency.
   - `test_init_sets_citation_defaults` — monkeypatch `memsearch.core.get_provider` and `memsearch.core.MilvusStore` to fakes, construct real `MemSearch(...)`, assert `_author == ""`, `_stale_after_days == 14`, `_authority_rerank.enabled is True`. (No `...` no-op.)
-- [ ] **Step 2: Run → FAIL.**
-- [ ] **Step 3: Implement** — `__init__` adds `author=""`, `citation_scope="private"`, `stale_after_days=14`, `authority_rerank=None` (→ `AuthorityRerankConfig()`); `search()` gains `today=None`. Rewire:
+- [x] **Step 2: Run → FAIL.**
+- [x] **Step 3: Implement** — `__init__` adds `author=""`, `citation_scope="private"`, `stale_after_days=14`, `authority_rerank=None` (→ `AuthorityRerankConfig()`); `search()` gains `today=None`. Rewire:
 ```python
         # fetch_k: widen when EITHER reranker is active (was: only cross-encoder)
         widen = bool(self._reranker_model) or self._authority_rerank.enabled
@@ -379,7 +379,7 @@ Register both in `MemSearchConfig` (`citation`, `authority_rerank`) + `_SECTION_
 ```
 Update `search()` docstring: authority floor-gating may return **fewer than `top_k`**.
 
-- [ ] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(core): citation enrichment + candidate-window authority rerank (MON-XXX)"`
+- [x] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(core): citation enrichment + candidate-window authority rerank (MON-XXX)"`
 
 ### Task 6: CLI — carry citation kwargs, show `source:line` + citation, fix the regression test
 
@@ -387,11 +387,11 @@ Update `search()` docstring: authority floor-gating may return **fewer than `top
 
 **Verified:** `_cfg_to_memsearch_kwargs` (`90-104`) is the only `MemSearch` constructor path (call sites `297/369/559/1160/1256`). `test_cli_config_helpers.py:59-87` asserts the EXACT returned dict — adding keys breaks it, so it MUST be updated in this task. JSON `--json-output` defaults to the **graph-wrapped** shape (`--include-graph/--no-graph` defaults `True`, `cli.py:320-322`; wrapper at `394-401`) — citation tests/skills must use `--no-graph` or read the `vector` key.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
   - extend `test_cli_config_helpers.py` expected dict with `author`, `citation_scope`, `stale_after_days`, `authority_rerank` (and set those on the `cfg` fixture).
   - `tests/test_cli_search_citation.py`: monkeypatch `memsearch.core.get_provider` + `memsearch.core.MilvusStore` to fakes (NOT `memsearch.store.MilvusStore`); config `[citation] author="Dominic Monkhouse (dominicmonkhouse)"`; run `search "q" --no-graph`; assert human output contains `decided by Dominic Monkhouse`, `2026-...`, and `:5-7` (line range); `search "q" --no-graph --json-output` includes `"author"` and `"days_since"`.
-- [ ] **Step 2: Run → FAIL.**
-- [ ] **Step 3: Implement** — add to `_cfg_to_memsearch_kwargs`:
+- [x] **Step 2: Run → FAIL.**
+- [x] **Step 3: Implement** — add to `_cfg_to_memsearch_kwargs`:
 ```python
         "author": cfg.citation.author,
         "citation_scope": cfg.citation.scope,
@@ -411,7 +411,7 @@ In the human-output loop, change the `Source:` line to include the line range an
                 cite += "  ⚠ stale"
             click.echo(cite)
 ```
-- [ ] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(cli): citation kwargs + source:line citation output; fix kwargs regression test (MON-XXX)"`
+- [x] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(cli): citation kwargs + source:line citation output; fix kwargs regression test (MON-XXX)"`
 
 ---
 
@@ -423,10 +423,10 @@ In the human-output loop, change the `Source:` line to include the line range an
 
 **Verified pattern:** do NOT instantiate `MemSearch` (that runs embedding-provider setup). Follow the `stats` command (`cli.py:1342-1358`): `MilvusStore(uri=..., token=..., collection=..., dimension=None)` then `store.indexed_sources()` (`store.py:241-248`).
 
-- [ ] **Step 1: Failing test** — `CliRunner`, monkeypatch `memsearch.store.MilvusStore.indexed_sources` to return dated + undated paths; assert `--json-output` has `earliest`, `latest`, `dated_source_count`, `undated_source_count`, `gaps` (`[start, end, days]` where consecutive dated days are >`gap_days`).
-- [ ] **Step 2: Run → FAIL.**
-- [ ] **Step 3: Implement** — instantiate `MilvusStore(..., dimension=None)`, run `extract_file_date` over `indexed_sources()`, compute min/max, unique sorted dates, gaps > `--gap-days` (default 2), undated count. `--json-output` emits the structure; human mode prints the span + gaps line.
-- [ ] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(cli): coverage command (MON-XXX)"`
+- [x] **Step 1: Failing test** — `CliRunner`, monkeypatch `memsearch.store.MilvusStore.indexed_sources` to return dated + undated paths; assert `--json-output` has `earliest`, `latest`, `dated_source_count`, `undated_source_count`, `gaps` (`[start, end, days]` where consecutive dated days are >`gap_days`).
+- [x] **Step 2: Run → FAIL.**
+- [x] **Step 3: Implement** — instantiate `MilvusStore(..., dimension=None)`, run `extract_file_date` over `indexed_sources()`, compute min/max, unique sorted dates, gaps > `--gap-days` (default 2), undated count. `--json-output` emits the structure; human mode prints the span + gaps line.
+- [x] **Step 4: Run → PASS.** **Step 5: Full gate.** **Step 6: Commit** `"feat(cli): coverage command (MON-XXX)"`
 
 ---
 
@@ -436,10 +436,10 @@ In the human-output loop, change the `Source:` line to include the line range an
 
 **Files (verified, two separate non-symlink dirs):** `~/.claude/skills/memory-recall/SKILL.md` (`35-58`) AND `~/.codex/skills/memory-recall/SKILL.md` (still has the old search command without `--no-graph` at line `66` and the old evidence contract at `40-58`/`109-111`). Both are the *active* deployed skills the runtimes load; both must change.
 
-- [ ] **Step 1:** In BOTH files, update the `Evidence:` line to require `author · source:line · date (Nd ago)` + `⚠ stale` when stale. For `absent`/`partial`, run `memsearch coverage --json-output` and cite the indexed date-range + gaps.
-- [ ] **Step 2:** In BOTH files, change the `memsearch search ...` recall command(s) to pass `--no-graph` (or read the `vector` key) so JSON carries citation fields directly. Add the worked example: *"You set the third pricing tier at £37. Decided by Dominic Monkhouse · `.memsearch/memory/2026-06-10.md:5-7` · 9 days ago. No newer pricing memory found (checked logs to 2026-06-19)."*
-- [ ] **Step 3: Verify** — for each deployed file run `grep -nE "decided by|--no-graph|coverage|source:line|Status: found" <file>` and confirm the markers are present in both `~/.claude/...` and `~/.codex/...`.
-- [ ] **Step 4:** Report in chat. Outside the repo — do NOT commit; do NOT push Dom-specific notes into the repo copies.
+- [x] **Step 1:** In BOTH files, update the `Evidence:` line to require `author · source:line · date (Nd ago)` + `⚠ stale` when stale. For `absent`/`partial`, run `memsearch coverage --json-output` and cite the indexed date-range + gaps.
+- [x] **Step 2:** In BOTH files, change the `memsearch search ...` recall command(s) to pass `--no-graph` (or read the `vector` key) so JSON carries citation fields directly. Add the worked example: *"You set the third pricing tier at £37. Decided by Dominic Monkhouse · `.memsearch/memory/2026-06-10.md:5-7` · 9 days ago. No newer pricing memory found (checked logs to 2026-06-19)."*
+- [x] **Step 3: Verify** — for each deployed file run `grep -nE "decided by|--no-graph|coverage|source:line|Status: found" <file>` and confirm the markers are present in both `~/.claude/...` and `~/.codex/...`.
+- [x] **Step 4:** Report in chat. Outside the repo — do NOT commit; do NOT push Dom-specific notes into the repo copies.
 
 ### Task 9: Repo plugin recall skills (all four copies)
 
@@ -447,9 +447,9 @@ In the human-output loop, change the `Source:` line to include the line range an
 
 **Verified:** four repo copies exist; Codex uses the `codex` path. Each must (a) carry the generic citation/honesty contract, (b) use `memsearch search ... --no-graph` (or read `vector`) so JSON carries citation fields. Do NOT copy Dom-specific failure-mode notes into the repo.
 
-- [ ] **Step 1:** Add the generic contract (Status found/partial/absent; cite author·source:line·date·age; admit gaps; use `coverage`; `--no-graph`) to all four copies.
-- [ ] **Step 2: Verify** — `for p in plugins/*/skills/memory-recall/SKILL.md; do grep -lq "Status: found" "$p" || echo "MISSING: $p"; done` prints nothing.
-- [ ] **Step 3: Commit** `"docs(recall): citation/honesty contract + --no-graph in all plugin recall skills (MON-XXX)"`
+- [x] **Step 1:** Add the generic contract (Status found/partial/absent; cite author·source:line·date·age; admit gaps; use `coverage`; `--no-graph`) to all four copies.
+- [x] **Step 2: Verify** — `for p in plugins/*/skills/memory-recall/SKILL.md; do grep -lq "Status: found" "$p" || echo "MISSING: $p"; done` prints nothing.
+- [x] **Step 3: Commit** `"docs(recall): citation/honesty contract + --no-graph in all plugin recall skills (MON-XXX)"`
 
 ---
 
