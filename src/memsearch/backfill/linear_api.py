@@ -36,7 +36,9 @@ class LinearIssue:
 
     @classmethod
     def from_graphql(cls, data: dict[str, Any]) -> LinearIssue:
-        labels = tuple(str(label.get("name") or "") for label in (data.get("labels") or {}).get("nodes", []) if label.get("name"))
+        labels = tuple(
+            str(label.get("name") or "") for label in (data.get("labels") or {}).get("nodes", []) if label.get("name")
+        )
         comments = tuple(
             {
                 "id": str(comment.get("id") or ""),
@@ -175,7 +177,9 @@ class LinearApiClient:
                         last_error = LinearApiError("Linear API rate limited")
                         continue
                     if response.status_code >= 400:
-                        raise LinearApiError(f"Linear API request failed: HTTP {response.status_code} {response.text[:300]}")
+                        raise LinearApiError(
+                            f"Linear API request failed: HTTP {response.status_code} {response.text[:300]}"
+                        )
                     body = response.json()
                 if body.get("errors"):
                     raise LinearApiError(json.dumps(body["errors"], sort_keys=True))

@@ -152,7 +152,9 @@ def test_export_records_invalid_attachment_url_without_failing_task(tmp_path: Pa
             ]
 
         def download_attachment(self, url: str, destination: Path) -> ManusAttachmentDownload:
-            return ManusApiClient(api_key="test-key", transport=lambda method, request_url, headers: b"{}").download_attachment(
+            return ManusApiClient(
+                api_key="test-key", transport=lambda method, request_url, headers: b"{}"
+            ).download_attachment(
                 url,
                 destination,
             )
@@ -227,7 +229,9 @@ def test_promote_creates_sanitised_indexable_layer_and_reports_exclusions(tmp_pa
 
     card_output = tmp_path / "cards" / "run-secret"
     card_summary = generate_manus_memsearch_cards(output, card_output)
-    card_markdown = next((card_output / "memory" / "manus_cloud" / "manus_api").glob("*.md")).read_text(encoding="utf-8")
+    card_markdown = next((card_output / "memory" / "manus_cloud" / "manus_api").glob("*.md")).read_text(
+        encoding="utf-8"
+    )
     card_manifest = json.loads((card_output / "card-manifest.json").read_text(encoding="utf-8"))
 
     assert card_summary["task_cards"] == 1

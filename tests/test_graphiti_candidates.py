@@ -39,7 +39,9 @@ def test_candidate_report_accepts_evidence_cited_seed(tmp_path):
 def test_candidate_report_requires_classification(tmp_path):
     seed = tmp_path / "docs" / "graphiti-curated-seeds" / "missing-classification.md"
     seed.parent.mkdir(parents=True)
-    seed.write_text("### Route\n\nGraphiti uses Tailscale Serve.\n\nEvidence: docs/graphiti-falkordb.md\n", encoding="utf-8")
+    seed.write_text(
+        "### Route\n\nGraphiti uses Tailscale Serve.\n\nEvidence: docs/graphiti-falkordb.md\n", encoding="utf-8"
+    )
 
     report = build_candidate_report([seed])
 

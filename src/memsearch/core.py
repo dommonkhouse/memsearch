@@ -491,7 +491,6 @@ def _prioritize_exact_identifier_matches(query: str, results: list[dict[str, Any
 
 def _result_contains_exact_identifier(needle: str, result: dict[str, Any]) -> bool:
     haystack = " ".join(
-        str(result.get(field, ""))
-        for field in ("heading", "content", "source", "chunk_hash")
+        str(result.get(field, "")) for field in ("heading", "content", "source", "chunk_hash")
     ).casefold()
     return needle in haystack

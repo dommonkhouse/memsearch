@@ -19,6 +19,7 @@ SIGNED_URL_MARKERS = {
     "x-goog-expires",
 }
 
+
 @dataclass(frozen=True)
 class SecretHit:
     path: str
@@ -30,8 +31,14 @@ SECRET_PATTERNS = [
     ("signed_url", re.compile(r"https?://[^\s)>\]\"']+")),
     ("computer_session_link", re.compile(r"computer:///sessions/[^\s)]+")),
     ("service_account_key_file", re.compile(r"\b[\w.-]*service-account-key\.json\b", re.IGNORECASE)),
-    ("gcp_service_account_json", re.compile(r"\{[^{}]*\"type\"\s*:\s*\"service_account\"[^{}]*\"private_key\"[^{}]*\}", re.DOTALL)),
-    ("private_key_block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL)),
+    (
+        "gcp_service_account_json",
+        re.compile(r"\{[^{}]*\"type\"\s*:\s*\"service_account\"[^{}]*\"private_key\"[^{}]*\}", re.DOTALL),
+    ),
+    (
+        "private_key_block",
+        re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL),
+    ),
     ("authorization_bearer", re.compile(r"(?i)(Authorization:\s*Bearer\s+)[^\s]+")),
     ("bearer_token", re.compile(r"(?i)(Bearer\s+)[^\s]+")),
     ("x_api_key_header", re.compile(r"(?i)(x-api-key:\s*)[^\s]+")),
@@ -50,7 +57,13 @@ SECRET_PATTERNS = [
 ]
 
 SCAN_PATTERNS = [
-    ("signed_url_query", re.compile(r"https?://[^\s)>\]\"']*[?&](?:X-Amz-Signature|X-Goog-Signature|Signature|token|X-Amz-Expires|X-Goog-Expires)=", re.IGNORECASE)),
+    (
+        "signed_url_query",
+        re.compile(
+            r"https?://[^\s)>\]\"']*[?&](?:X-Amz-Signature|X-Goog-Signature|Signature|token|X-Amz-Expires|X-Goog-Expires)=",
+            re.IGNORECASE,
+        ),
+    ),
     ("computer_session_link", re.compile(r"computer:///sessions/[^\s)]+")),
     ("service_account_key_file", re.compile(r"\b[\w.-]*service-account-key\.json\b", re.IGNORECASE)),
     ("gcp_service_account_json", re.compile(r"\"type\"\s*:\s*\"service_account\".*?\"private_key\"", re.DOTALL)),
@@ -67,7 +80,10 @@ SCAN_PATTERNS = [
     ("openai_anthropic_key", re.compile(r"\b(?:sk-proj-|sk-|sk-ant-)[A-Za-z0-9._-]{8,}\b")),
     ("github_or_slack_token", re.compile(r"\b(?:xox[baprs]-|gh[pousr]_|eyJ)[A-Za-z0-9._-]{12,}\b")),
     ("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
-    ("aws_secret_key_value", re.compile(r"(?i)(aws_secret_access_key\s*[=:]\s*)['\"]?(?!\[REDACTED\])[A-Za-z0-9/+=]{20,}['\"]?")),
+    (
+        "aws_secret_key_value",
+        re.compile(r"(?i)(aws_secret_access_key\s*[=:]\s*)['\"]?(?!\[REDACTED\])[A-Za-z0-9/+=]{20,}['\"]?"),
+    ),
     ("private_key_header", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
 ]
 

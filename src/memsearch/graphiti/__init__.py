@@ -1,2 +1,1 @@
 """Optional Graphiti integration helpers."""
-

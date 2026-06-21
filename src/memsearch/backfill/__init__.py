@@ -1,2 +1,1 @@
 """Chat transcript backfill helpers."""
-

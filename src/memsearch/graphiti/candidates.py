@@ -47,15 +47,29 @@ def build_candidate_report(paths: Iterable[Path]) -> CandidateReport:
         if _is_raw_source(path):
             rejected.append(CandidateItem(path, CandidateStatus.REJECTED_RAW_SOURCE, classification, "raw source path"))
         elif not classification:
-            rejected.append(CandidateItem(path, CandidateStatus.REJECTED_MISSING_CLASSIFICATION, "", "missing Classification marker"))
+            rejected.append(
+                CandidateItem(
+                    path, CandidateStatus.REJECTED_MISSING_CLASSIFICATION, "", "missing Classification marker"
+                )
+            )
         elif classification not in VALID_CLASSIFICATIONS:
-            rejected.append(CandidateItem(path, CandidateStatus.REJECTED_MISSING_CLASSIFICATION, classification, "unknown classification"))
+            rejected.append(
+                CandidateItem(
+                    path, CandidateStatus.REJECTED_MISSING_CLASSIFICATION, classification, "unknown classification"
+                )
+            )
         elif "Evidence:" not in body:
-            rejected.append(CandidateItem(path, CandidateStatus.REJECTED_MISSING_EVIDENCE, classification, "missing Evidence marker"))
+            rejected.append(
+                CandidateItem(
+                    path, CandidateStatus.REJECTED_MISSING_EVIDENCE, classification, "missing Evidence marker"
+                )
+            )
         elif stale_status is not None:
             rejected.append(CandidateItem(path, stale_status, classification, "stale route token"))
         elif classification == "unsafe":
-            rejected.append(CandidateItem(path, CandidateStatus.REJECTED_UNSAFE, classification, "unsafe classification"))
+            rejected.append(
+                CandidateItem(path, CandidateStatus.REJECTED_UNSAFE, classification, "unsafe classification")
+            )
         elif classification != "current":
             rejected.append(CandidateItem(path, CandidateStatus.REJECTED_NON_CURRENT, classification, "not current"))
         else:

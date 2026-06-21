@@ -103,11 +103,15 @@ def manus_pilot(limit: int, machine: str, output: Path) -> None:
 @click.option("--output", type=click.Path(path_type=Path), default=Path(".local/manus-api-export"))
 @click.option("--run-id", default=None)
 @click.option("--resume", is_flag=True)
-def manus_export(export_all: bool, limit: int | None, machine: str, output: Path, run_id: str | None, resume: bool) -> None:
+def manus_export(
+    export_all: bool, limit: int | None, machine: str, output: Path, run_id: str | None, resume: bool
+) -> None:
     if not export_all and limit is None:
         raise click.ClickException("Use --all or --limit")
     client = ManusApiClient()
-    summary = export_manus_run(client, output, machine=machine, limit=None if export_all else limit, run_id=run_id, resume=resume)
+    summary = export_manus_run(
+        client, output, machine=machine, limit=None if export_all else limit, run_id=run_id, resume=resume
+    )
     click.echo(json.dumps(summary, indent=2, sort_keys=True))
 
 
@@ -196,7 +200,11 @@ def source_sync_group() -> None:
 @source_sync_group.command("linear")
 @click.option("--machine", required=True)
 @click.option("--since", default=None)
-@click.option("--output-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/linear"))
+@click.option(
+    "--output-root",
+    type=click.Path(path_type=Path),
+    default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/linear"),
+)
 @click.option("--state-dir", type=click.Path(path_type=Path), default=Path(".local/source-sync-state"))
 @click.option("--dry-run", is_flag=True)
 @click.option("--index", "index_cards", is_flag=True)
@@ -230,7 +238,11 @@ def source_sync_linear(
 @click.option("--since", default=None, help="Alias for --updated-since for Manus date-selective runs.")
 @click.option("--created-since", default=None, help="Select Manus tasks created at or after this ISO timestamp/date.")
 @click.option("--updated-since", default=None, help="Select Manus tasks updated at or after this ISO timestamp/date.")
-@click.option("--output-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/manus-cloud/manus-api"))
+@click.option(
+    "--output-root",
+    type=click.Path(path_type=Path),
+    default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/manus-cloud/manus-api"),
+)
 @click.option("--state-dir", type=click.Path(path_type=Path), default=Path(".local/source-sync-state"))
 @click.option("--all", "export_all", is_flag=True)
 @click.option("--run-id", default=None)
@@ -274,11 +286,15 @@ def source_sync_manus(
 
 @main.command("source-freshness")
 @click.option("--state-dir", type=click.Path(path_type=Path), default=Path(".local/source-sync-state"))
-@click.option("--memory-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory"))
+@click.option(
+    "--memory-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory")
+)
 @click.option("--collection", default="memsearch_chunks")
 @click.option("--run-proof", is_flag=True)
 def source_freshness(state_dir: Path, memory_root: Path, collection: str, run_proof: bool) -> None:
-    click.echo(source_freshness_json(state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof))
+    click.echo(
+        source_freshness_json(state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof)
+    )
 
 
 @main.command("scheduler-render")
@@ -365,7 +381,11 @@ def _parse_source(source: SourceFile) -> Conversation:
         return parse_claude_code(source.path, machine=source.machine)
     if source.product == "codex":
         return parse_codex(source.path, machine=source.machine)
-    if source.product in {"claude_desktop_local_agent_jsonl", "claude_desktop_local_agent_json", "claude_desktop_code_session"}:
+    if source.product in {
+        "claude_desktop_local_agent_jsonl",
+        "claude_desktop_local_agent_json",
+        "claude_desktop_code_session",
+    }:
         return parse_claude_desktop(source)
     if source.product.startswith("manus_"):
         raise ValueError(classify_manus_source(source.path))

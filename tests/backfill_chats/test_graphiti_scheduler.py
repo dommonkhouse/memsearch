@@ -6,7 +6,9 @@ from memsearch.backfill.scheduler import render_scheduler_plists
 
 
 def test_scheduler_renders_graphiti_watchdog(tmp_path):
-    summary = render_scheduler_plists(output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's Mac mini")
+    summary = render_scheduler_plists(
+        output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's Mac mini"
+    )
 
     labels = {item["label"] for item in summary["plists"]}
     assert "com.monkhouse.graphiti-mon316-watchdog" in labels
@@ -19,7 +21,9 @@ def test_scheduler_renders_graphiti_watchdog(tmp_path):
 
 
 def test_scheduler_renders_graphiti_backup(tmp_path):
-    summary = render_scheduler_plists(output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's Mac mini")
+    summary = render_scheduler_plists(
+        output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's Mac mini"
+    )
 
     labels = {item["label"] for item in summary["plists"]}
     assert "com.monkhouse.graphiti-mon316-backup" in labels
@@ -30,7 +34,9 @@ def test_scheduler_renders_graphiti_backup(tmp_path):
 
 
 def test_scheduler_renders_source_freshness_proof(tmp_path):
-    summary = render_scheduler_plists(output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's Mac mini")
+    summary = render_scheduler_plists(
+        output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's Mac mini"
+    )
 
     labels = {item["label"] for item in summary["plists"]}
     assert "com.memsearch.source-freshness-proof" in labels
@@ -41,7 +47,9 @@ def test_scheduler_renders_source_freshness_proof(tmp_path):
 
 
 def test_scheduler_renders_graphiti_candidate_report(tmp_path):
-    summary = render_scheduler_plists(output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's Mac mini")
+    summary = render_scheduler_plists(
+        output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's Mac mini"
+    )
 
     labels = {item["label"] for item in summary["plists"]}
     assert "com.memsearch.graphiti-candidate-report" in labels
@@ -52,7 +60,9 @@ def test_scheduler_renders_graphiti_candidate_report(tmp_path):
 
 
 def test_scheduler_does_not_render_graphiti_mini_jobs_on_macbook(tmp_path):
-    summary = render_scheduler_plists(output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's MacBook Pro")
+    summary = render_scheduler_plists(
+        output=tmp_path / "launchagents", repo_root=tmp_path, machine="Dominic's MacBook Pro"
+    )
 
     labels = {item["label"] for item in summary["plists"]}
     assert "com.monkhouse.graphiti-mon316-watchdog" not in labels

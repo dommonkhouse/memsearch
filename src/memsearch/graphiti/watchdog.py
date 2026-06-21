@@ -157,7 +157,9 @@ def _docker_compose_check(docker_host: str) -> WatchdogCheck:
 def _docker_socket_check(docker_host: str) -> WatchdogCheck:
     env = {**os.environ, "DOCKER_HOST": docker_host}
     try:
-        completed = subprocess.run(["docker", "version"], capture_output=True, check=False, text=True, timeout=30, env=env)
+        completed = subprocess.run(
+            ["docker", "version"], capture_output=True, check=False, text=True, timeout=30, env=env
+        )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return WatchdogCheck("colima_graphiti_mon316", False, str(exc))
     output = (completed.stdout or completed.stderr).strip()

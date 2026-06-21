@@ -65,7 +65,7 @@ async def test_search_widens_exact_identifier_candidates_to_collection_size() ->
                     "heading": "Batch evidence",
                     "source": "2026-06-13.md",
                     "chunk_hash": "exact",
-                }
+                },
             ]
 
         def count(self):

@@ -43,12 +43,15 @@ class McpStreamableHttpTransport:
 
         headers = {"Host": self.host_header} if self.host_header else None
         try:
-            async with streamablehttp_client(
-                self.endpoint,
-                headers=headers,
-                timeout=self.timeout_seconds,
-                sse_read_timeout=self.timeout_seconds,
-            ) as (read_stream, write_stream, _), ClientSession(read_stream, write_stream) as session:
+            async with (
+                streamablehttp_client(
+                    self.endpoint,
+                    headers=headers,
+                    timeout=self.timeout_seconds,
+                    sse_read_timeout=self.timeout_seconds,
+                ) as (read_stream, write_stream, _),
+                ClientSession(read_stream, write_stream) as session,
+            ):
                 await session.initialize()
                 result = await session.call_tool(name, arguments)
         except Exception as exc:

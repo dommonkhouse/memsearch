@@ -59,7 +59,9 @@ def test_output_path_groups_by_machine_product_and_month(tmp_path: Path) -> None
 def test_render_uses_export_hash_when_source_is_export(tmp_path: Path) -> None:
     export_path = tmp_path / "conversations.json"
     export_path.write_text("[]", encoding="utf-8")
-    source = SourceFile.from_path(export_path, product="chatgpt_export", machine="Dominic's MacBook", source_kind="export")
+    source = SourceFile.from_path(
+        export_path, product="chatgpt_export", machine="Dominic's MacBook", source_kind="export"
+    )
     conversation = Conversation(
         source=source,
         product="chatgpt_export",

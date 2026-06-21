@@ -75,7 +75,9 @@ class SourceFile:
         )
 
     def to_manifest_entry(self, *, conversation_key: str = "", status: str | None = None) -> BackfillManifestEntry:
-        return BackfillManifestEntry.from_source_file(self, conversation_key=conversation_key, status=status or self.status)
+        return BackfillManifestEntry.from_source_file(
+            self, conversation_key=conversation_key, status=status or self.status
+        )
 
 
 @dataclass(frozen=True)

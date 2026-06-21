@@ -41,7 +41,9 @@ def index_markdown_cards(
         return IndexResult(command=command, returncode=0, skipped=True)
     run = runner or _run
     completed = run(command)
-    return IndexResult(command=command, returncode=completed.returncode, stdout=completed.stdout, stderr=completed.stderr)
+    return IndexResult(
+        command=command, returncode=completed.returncode, stdout=completed.stdout, stderr=completed.stderr
+    )
 
 
 def search_proof(
@@ -56,7 +58,9 @@ def search_proof(
         return IndexResult(command=command, returncode=0, skipped=True)
     run = runner or _run
     completed = run(command)
-    return IndexResult(command=command, returncode=completed.returncode, stdout=completed.stdout, stderr=completed.stderr)
+    return IndexResult(
+        command=command, returncode=completed.returncode, stdout=completed.stdout, stderr=completed.stderr
+    )
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess[str]:

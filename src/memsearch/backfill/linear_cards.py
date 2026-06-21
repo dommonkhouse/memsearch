@@ -44,7 +44,9 @@ def render_linear_issue_card(issue: LinearIssue, *, machine: str) -> str:
     return "\n".join(lines)
 
 
-def write_linear_export(run_dir: Path, *, issues: list[LinearIssue], machine: str, since: str, run_id: str) -> dict[str, Any]:
+def write_linear_export(
+    run_dir: Path, *, issues: list[LinearIssue], machine: str, since: str, run_id: str
+) -> dict[str, Any]:
     run_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "run_id": run_id,
@@ -72,7 +74,9 @@ def load_linear_export(run_dir: Path) -> tuple[list[LinearIssue], dict[str, Any]
     return [LinearIssue.from_json(row) for row in payload.get("issues", [])], payload
 
 
-def write_linear_cards(run_dir: Path, output_dir: Path, *, machine: str | None = None, force: bool = False) -> dict[str, Any]:
+def write_linear_cards(
+    run_dir: Path, output_dir: Path, *, machine: str | None = None, force: bool = False
+) -> dict[str, Any]:
     output_dir = output_dir.expanduser()
     if output_dir.exists() and any(output_dir.iterdir()) and not force:
         raise FileExistsError(f"refusing to overwrite non-empty output: {output_dir}")

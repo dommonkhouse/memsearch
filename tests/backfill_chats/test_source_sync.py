@@ -78,7 +78,9 @@ def test_linear_sync_updates_state_when_not_dry_run(tmp_path: Path) -> None:
     assert summary.status == "success"
     assert state.last_run_id == summary.run_id
     assert state.proof_ids == ["MON-318"]
-    assert json.loads((Path(summary.output_dir) / "card-manifest.json").read_text(encoding="utf-8"))["issue_ids"] == ["MON-318"]
+    assert json.loads((Path(summary.output_dir) / "card-manifest.json").read_text(encoding="utf-8"))["issue_ids"] == [
+        "MON-318"
+    ]
 
 
 def test_linear_sync_raises_when_index_command_fails(tmp_path: Path, monkeypatch) -> None:
@@ -196,7 +198,9 @@ def test_manus_sync_date_filter_exports_selected_tasks_without_updating_state(tm
     monkeypatch.setattr(source_sync_module, "verify_manus_run", lambda _raw_run: [])
     monkeypatch.setattr(source_sync_module, "scan_path_for_secrets", lambda _path: [])
     monkeypatch.setattr(source_sync_module, "promote_manus_run", lambda *_args, **_kwargs: {"rendered_task_count": 1})
-    monkeypatch.setattr(source_sync_module, "generate_manus_memsearch_cards", lambda *_args, **_kwargs: {"task_cards": 1})
+    monkeypatch.setattr(
+        source_sync_module, "generate_manus_memsearch_cards", lambda *_args, **_kwargs: {"task_cards": 1}
+    )
     monkeypatch.setattr(
         source_sync_module,
         "index_markdown_cards",

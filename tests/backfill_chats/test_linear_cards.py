@@ -41,7 +41,9 @@ def test_linear_export_and_cards_write_deterministic_markdown(tmp_path: Path) ->
     run_dir = tmp_path / "run"
     output = tmp_path / "cards"
 
-    export_summary = write_linear_export(run_dir, issues=[issue], machine="Test Mac", since="2026-06-10T00:00:00Z", run_id="run-1")
+    export_summary = write_linear_export(
+        run_dir, issues=[issue], machine="Test Mac", since="2026-06-10T00:00:00Z", run_id="run-1"
+    )
     card_summary = write_linear_cards(run_dir, output, machine="Test Mac")
     manifest = json.loads((output / "card-manifest.json").read_text(encoding="utf-8"))
     markdown = (output / "memory" / "linear" / "test-mac" / "2026-06.md").read_text(encoding="utf-8")
