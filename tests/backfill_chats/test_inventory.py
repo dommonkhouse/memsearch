@@ -33,6 +33,26 @@ def test_collect_inventory_labels_known_sources(tmp_path: Path) -> None:
     assert {f.machine for f in files} == {"Test Mac"}
 
 
+def test_collect_inventory_labels_gemini_cli_chat_sources(tmp_path: Path) -> None:
+    source = tmp_path / ".gemini/tmp/new-project/chats/session-1.json"
+    source.parent.mkdir(parents=True)
+    source.write_text("{}", encoding="utf-8")
+
+    files = collect_inventory(home=tmp_path, machine="Test Mac")
+
+    assert [(f.product, f.path) for f in files] == [("gemini_cli_chat", source)]
+
+
+def test_collect_inventory_labels_antigravity_cli_transcripts(tmp_path: Path) -> None:
+    source = tmp_path / ".gemini/antigravity-cli/brain/session-1/.system_generated/logs/transcript.jsonl"
+    source.parent.mkdir(parents=True)
+    source.write_text('{"type":"USER_INPUT"}\n', encoding="utf-8")
+
+    files = collect_inventory(home=tmp_path, machine="Test Mac")
+
+    assert [(f.product, f.path) for f in files] == [("antigravity_cli_transcript", source)]
+
+
 def test_collect_inventory_marks_cache_and_export_precedence(tmp_path: Path) -> None:
     cache = tmp_path / "Library/Application Support/com.openai.chat/cache.json"
     export = tmp_path / "memsearch/.local/chat-exports/chatgpt/conversations.json"

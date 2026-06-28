@@ -36,6 +36,32 @@ def test_candidate_report_accepts_evidence_cited_seed(tmp_path):
     assert report.accepted[0].classification == "current"
 
 
+def test_candidate_report_accepts_antigravity_cards_as_curated_source(tmp_path):
+    card = (
+        tmp_path
+        / ".memsearch"
+        / "memory"
+        / "antigravity"
+        / "gemini-cli"
+        / "run-1"
+        / "cards"
+        / "memory"
+        / "antigravity"
+        / "gemini_cli"
+        / "2026-06.md"
+    )
+    card.parent.mkdir(parents=True, exist_ok=True)
+    card.write_text(
+        "### Antigravity session\n\nClassification: current\n\nAntigravity captured a Linear recall proof.\n\nEvidence: card-manifest.json\n",
+        encoding="utf-8",
+    )
+
+    report = build_candidate_report([card])
+
+    assert len(report.accepted) == 1
+    assert report.accepted[0].source == card
+
+
 def test_candidate_report_requires_classification(tmp_path):
     seed = tmp_path / "docs" / "graphiti-curated-seeds" / "missing-classification.md"
     seed.parent.mkdir(parents=True)

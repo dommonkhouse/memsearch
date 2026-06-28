@@ -75,6 +75,28 @@ def render_scheduler_plists(
             calendar={"Weekday": 1, "Hour": 6, "Minute": 0},
             log_dir=log_dir,
         ),
+        _write_plist(
+            output / "com.memsearch.daily-antigravity-sync.plist",
+            label="com.memsearch.daily-antigravity-sync",
+            repo_root=repo_root,
+            args=_shell_args(
+                repo_root,
+                env_path,
+                [
+                    uv_path,
+                    "run",
+                    "python",
+                    "-m",
+                    "memsearch.backfill.cli",
+                    "source-sync",
+                    "antigravity",
+                    "--machine",
+                    machine,
+                ],
+            ),
+            calendar={"Hour": 6, "Minute": 40},
+            log_dir=log_dir,
+        ),
     ]
     if _is_graphiti_mini(machine):
         rendered.extend(

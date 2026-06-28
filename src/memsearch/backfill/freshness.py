@@ -41,6 +41,7 @@ def source_freshness_report(
     sources = [
         _source_report("linear", state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof),
         _source_report("manus", state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof),
+        _source_report("antigravity", state_dir=state_dir, memory_root=memory_root, collection=collection, run_proof=run_proof),
     ]
     return {
         "sources": [source.to_json() for source in sources],
@@ -85,7 +86,7 @@ def _source_report(
         last_failure_at=state.last_failure_at,
         card_count=_count_markdown_cards(card_root),
         state_status="present" if (state_dir / f"{source}.json").is_file() else "missing-state",
-        next_run="daily at 06:30 local" if source == "linear" else "weekly Monday at 06:00 local",
+        next_run=_next_run(source),
         proof_searches=proof_searches,
     )
 
@@ -93,7 +94,21 @@ def _source_report(
 def _card_root(source: str, memory_root: Path) -> Path:
     if source == "linear":
         return memory_root / "linear"
-    return memory_root / "manus-cloud" / "manus-api"
+    if source == "manus":
+        return memory_root / "manus-cloud" / "manus-api"
+    if source == "antigravity":
+        return memory_root / "antigravity" / "gemini-cli"
+    raise ValueError(f"Unsupported source: {source}")
+
+
+def _next_run(source: str) -> str:
+    if source == "linear":
+        return "daily at 06:30 local"
+    if source == "manus":
+        return "weekly Monday at 06:00 local"
+    if source == "antigravity":
+        return "daily at 06:40 local"
+    raise ValueError(f"Unsupported source: {source}")
 
 
 def _count_markdown_cards(path: Path) -> int:

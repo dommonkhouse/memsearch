@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 from collections import Counter
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import click
 
 from .freshness import source_freshness_json
+from .gemini_cards import clear_gemini_cards_output, write_gemini_cards
 from .inventory import collect_inventory
 from .linear_api import LinearApiClient
 from .linear_cards import write_linear_cards, write_linear_export
@@ -25,11 +27,20 @@ from .models import BackfillManifestEntry, Conversation, SourceFile, machine_slu
 from .parsers.claude_code import parse_claude_code
 from .parsers.claude_desktop import parse_claude_desktop
 from .parsers.codex import parse_codex
+from .parsers.gemini import parse_gemini_chat
 from .parsers.manus import classify_manus_source
 from .redact import scan_path_for_secrets, secret_hits_to_json
 from .render import output_path_for_conversation, render_conversation
 from .scheduler import render_scheduler_plists
-from .source_sync import summary_json, sync_linear, sync_manus
+from .source_sync import (
+    DEFAULT_ANTIGRAVITY_CARD_ROOT,
+    DEFAULT_LINEAR_OUTPUT_ROOT,
+    DEFAULT_MANUS_CARD_ROOT,
+    summary_json,
+    sync_antigravity,
+    sync_linear,
+    sync_manus,
+)
 
 
 @click.group()
@@ -188,6 +199,30 @@ def linear_cards(machine: str, run_dir: Path, output: Path, force: bool) -> None
     click.echo(json.dumps(summary, indent=2, sort_keys=True))
 
 
+@main.command("antigravity-cards")
+@click.option("--input", "input_path", type=click.Path(path_type=Path), required=True)
+@click.option("--machine", required=True)
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+@click.option("--force", is_flag=True)
+def antigravity_cards(input_path: Path, machine: str, output: Path, force: bool) -> None:
+    paths = _antigravity_input_paths(input_path)
+    conversations = [parse_gemini_chat(path, machine=machine) for path in paths]
+    output = output.expanduser()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix=".antigravity-cards-", dir=str(output.parent)) as temp_dir:
+        staging = Path(temp_dir) / "cards"
+        write_gemini_cards(conversations, staging, machine=machine, force=True)
+        hits = scan_path_for_secrets(staging)
+        if hits:
+            raise click.ClickException(f"Antigravity card secret scan found {len(hits)} hit(s)")
+    summary = write_gemini_cards(conversations, output, machine=machine, force=force)
+    hits = scan_path_for_secrets(output)
+    if hits:
+        clear_gemini_cards_output(output)
+        raise click.ClickException(f"Antigravity card secret scan found {len(hits)} hit(s)")
+    click.echo(json.dumps(summary, indent=2, sort_keys=True))
+
+
 @main.group("source-sync")
 def source_sync_group() -> None:
     """Refresh external sources into MemSearch-ready Markdown cards."""
@@ -196,7 +231,7 @@ def source_sync_group() -> None:
 @source_sync_group.command("linear")
 @click.option("--machine", required=True)
 @click.option("--since", default=None)
-@click.option("--output-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/linear"))
+@click.option("--output-root", type=click.Path(path_type=Path), default=DEFAULT_LINEAR_OUTPUT_ROOT)
 @click.option("--state-dir", type=click.Path(path_type=Path), default=Path(".local/source-sync-state"))
 @click.option("--dry-run", is_flag=True)
 @click.option("--index", "index_cards", is_flag=True)
@@ -230,7 +265,7 @@ def source_sync_linear(
 @click.option("--since", default=None, help="Alias for --updated-since for Manus date-selective runs.")
 @click.option("--created-since", default=None, help="Select Manus tasks created at or after this ISO timestamp/date.")
 @click.option("--updated-since", default=None, help="Select Manus tasks updated at or after this ISO timestamp/date.")
-@click.option("--output-root", type=click.Path(path_type=Path), default=Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/manus-cloud/manus-api"))
+@click.option("--output-root", type=click.Path(path_type=Path), default=DEFAULT_MANUS_CARD_ROOT)
 @click.option("--state-dir", type=click.Path(path_type=Path), default=Path(".local/source-sync-state"))
 @click.option("--all", "export_all", is_flag=True)
 @click.option("--run-id", default=None)
@@ -268,6 +303,47 @@ def source_sync_manus(
         index=index_cards,
         collection=collection,
         max_tasks=max_tasks,
+    )
+    click.echo(summary_json(summary))
+
+
+@source_sync_group.command("antigravity")
+@click.option("--machine", required=True)
+@click.option("--home", type=click.Path(path_type=Path), default=Path.home())
+@click.option("--since", default=None)
+@click.option("--output-root", type=click.Path(path_type=Path), default=DEFAULT_ANTIGRAVITY_CARD_ROOT)
+@click.option(
+    "--state-dir",
+    type=click.Path(path_type=Path),
+    default=Path(".local/source-sync-state"),
+    help="Defaults to repo-local .local/source-sync-state; pass explicitly when running outside the memsearch repo.",
+)
+@click.option("--dry-run", is_flag=True)
+@click.option("--index", "index_cards", is_flag=True)
+@click.option("--collection", default="memsearch_chunks")
+@click.option("--max-sessions", type=int, default=None)
+def source_sync_antigravity(
+    machine: str,
+    home: Path,
+    since: str | None,
+    output_root: Path,
+    state_dir: Path,
+    dry_run: bool,
+    index_cards: bool,
+    collection: str,
+    max_sessions: int | None,
+) -> None:
+    _validate_default_state_dir(state_dir)
+    summary = sync_antigravity(
+        machine=machine,
+        home=home,
+        since=since,
+        output_root=output_root,
+        state_dir=state_dir,
+        dry_run=dry_run,
+        index=index_cards,
+        collection=collection,
+        max_sessions=max_sessions,
     )
     click.echo(summary_json(summary))
 
@@ -365,11 +441,36 @@ def _parse_source(source: SourceFile) -> Conversation:
         return parse_claude_code(source.path, machine=source.machine)
     if source.product == "codex":
         return parse_codex(source.path, machine=source.machine)
+    if source.product == "gemini_cli_chat":
+        return parse_gemini_chat(source.path, machine=source.machine)
     if source.product in {"claude_desktop_local_agent_jsonl", "claude_desktop_local_agent_json", "claude_desktop_code_session"}:
         return parse_claude_desktop(source)
     if source.product.startswith("manus_"):
         raise ValueError(classify_manus_source(source.path))
     raise ValueError(f"unsupported product: {source.product}")
+
+
+def _antigravity_input_paths(input_path: Path) -> list[Path]:
+    input_path = input_path.expanduser()
+    if input_path.is_file():
+        return [input_path]
+    if input_path.is_dir():
+        paths = sorted(path for path in input_path.glob("*.json") if path.is_file())
+        if not paths:
+            raise click.ClickException(f"no Antigravity JSON files found in {input_path}")
+        return paths
+    raise click.ClickException(f"missing Antigravity input: {input_path}")
+
+
+def _validate_default_state_dir(state_dir: Path) -> None:
+    if state_dir != Path(".local/source-sync-state"):
+        return
+    cwd = Path.cwd()
+    if (cwd / "pyproject.toml").is_file() and (cwd / "src" / "memsearch").is_dir():
+        return
+    raise click.ClickException(
+        "default --state-dir is repo-local; cd to the memsearch repo or pass --state-dir explicitly"
+    )
 
 
 def _limit_per_product(sources: list[SourceFile], limit: int) -> list[SourceFile]:

@@ -58,8 +58,8 @@ def is_curated_source(path: Path) -> bool:
     if name.endswith((".json.md", ".jsonl.md")):
         return False
 
-    # Linear cards are already structured notes, not raw chat transcripts.
-    if "linear" in lowered_parts and "memory" in lowered_parts:
+    # Linear and Antigravity cards are already structured notes, not raw transcripts.
+    if "memory" in lowered_parts and ({"linear"} <= lowered_parts or {"antigravity", "gemini_cli"} <= lowered_parts):
         return True
 
     # Project/status/user summaries are intentionally maintained durable files.

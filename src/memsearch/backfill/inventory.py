@@ -18,6 +18,8 @@ class InventoryRule:
 HOME_RULES = [
     InventoryRule("claude_code", ".claude/projects/**/*.jsonl"),
     InventoryRule("codex", ".codex/sessions/**/*.jsonl"),
+    InventoryRule("gemini_cli_chat", ".gemini/tmp/*/chats/*.json"),
+    InventoryRule("antigravity_cli_transcript", ".gemini/antigravity-cli/brain/*/.system_generated/logs/transcript.jsonl"),
     InventoryRule("claude_desktop_local_agent_jsonl", "Library/Application Support/Claude/local-agent-mode-sessions/**/*.jsonl"),
     InventoryRule("claude_desktop_local_agent_json", "Library/Application Support/Claude/local-agent-mode-sessions/**/*.json"),
     InventoryRule(

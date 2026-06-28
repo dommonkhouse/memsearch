@@ -114,6 +114,8 @@ def _is_raw_source(path: Path) -> bool:
     parts = {part.lower() for part in path.parts}
     if "linear" in parts and "memory" in parts:
         return False
+    if {"antigravity", "gemini_cli", "memory"} <= parts:
+        return False
     return bool(parts & RAW_SOURCE_PARTS and "graphiti-curated-seeds" not in "/".join(parts))
 
 

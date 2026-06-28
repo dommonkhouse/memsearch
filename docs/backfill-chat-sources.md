@@ -35,6 +35,38 @@ Current skipped sources:
 - ChatGPT and Claude cache files until official exports are available.
 - Manus local app and browser files are probe-only. Current local files are Chromium cache and IndexedDB/LevelDB artefacts, not a proven transcript format.
 
+## Antigravity / Gemini route
+
+Antigravity/Gemini sessions are captured from local Gemini chat files and live Antigravity CLI transcripts:
+
+```text
+~/.gemini/tmp/*/chats/*.json
+~/.gemini/antigravity-cli/brain/*/.system_generated/logs/transcript.jsonl
+```
+
+`last_conversations.json` is treated as a cache/id map only. It is not the transcript source and must not be used as the source of record for backfill.
+
+Sessions default to 30-day retention, so the freshness route runs daily. Raw Gemini and Antigravity CLI logs can include tool output and local app state, so they are not indexed directly. The supported MemSearch source is the compact card output generated from those raw logs.
+
+Supported commands:
+
+```bash
+uv run python -m memsearch.backfill.cli source-sync antigravity --machine "$(scutil --get ComputerName)" --dry-run --max-sessions 5
+uv run python -m memsearch.backfill.cli source-sync antigravity --machine "$(scutil --get ComputerName)" --max-sessions 5
+uv run python -m memsearch.backfill.cli scan-secrets /Users/dominicmonkhouse/Projects/.memsearch/memory/antigravity/gemini-cli/<run_id>/cards
+rg -n "backfill-agent:antigravity|source:(gemini_cli_chat|antigravity_cli_transcript)|User request|Assistant outcome" /Users/dominicmonkhouse/Projects/.memsearch/memory/antigravity/gemini-cli
+uv run memsearch index /Users/dominicmonkhouse/Projects/.memsearch/memory/antigravity/gemini-cli/<run_id>/cards/memory/antigravity/gemini_cli -c ms_antigravity_review_<run_id>_cards_openai -p openai -m text-embedding-3-small
+```
+
+Safety gates:
+
+- Dry-run previews changed sessions and does not write `.local/source-sync-state/antigravity.json`.
+- Non-indexing sync writes cards and updates state, but indexing remains skipped unless `--index` is explicitly passed.
+- Card scan must pass before review indexing.
+- First indexing goes only into a temporary review collection such as `ms_antigravity_review_<run_id>_cards_openai`.
+- Canonical indexing waits for manual review of the cards, temporary collection, and proof searches.
+- OpenBrain/Graphiti consumes the same compact card Markdown after review. Use `graph-index-curated` on the generated card file path, not on raw `~/.gemini/tmp` JSON or `~/.gemini/antigravity-cli/brain` JSONL.
+
 ## Manus route
 
 Manus has a public API for creating and managing agent tasks, including multi-turn task messages. The supported route for Manus backfill is now the read-only API path:
@@ -120,6 +152,7 @@ Safety gates:
 Cadence:
 
 - Linear: daily at 06:30 local time.
+- Antigravity: daily at 06:40 local time.
 - Manus: weekly on Monday at 06:00 local time.
 
 Shared commands:

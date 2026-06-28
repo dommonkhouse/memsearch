@@ -13,15 +13,23 @@ def test_scheduler_render_writes_daily_and_weekly_plists_without_installing(tmp_
     summary = render_scheduler_plists(output=tmp_path / "launchagents", repo_root=repo, machine="Test Mac")
     daily = plistlib.loads((tmp_path / "launchagents" / "com.memsearch.daily-linear-sync.plist").read_bytes())
     weekly = plistlib.loads((tmp_path / "launchagents" / "com.memsearch.weekly-manus-sync.plist").read_bytes())
+    antigravity = plistlib.loads(
+        (tmp_path / "launchagents" / "com.memsearch.daily-antigravity-sync.plist").read_bytes()
+    )
 
     assert summary["installed"] is False
+    assert summary["approval_required_before_install"] is True
     assert daily["StartCalendarInterval"] == {"Hour": 6, "Minute": 30}
     assert weekly["StartCalendarInterval"] == {"Weekday": 1, "Hour": 6, "Minute": 0}
+    assert antigravity["StartCalendarInterval"] == {"Hour": 6, "Minute": 40}
     assert daily["ProgramArguments"][0] == "/bin/zsh"
     assert Path(daily["ProgramArguments"][0]).is_absolute()
     assert "source" in daily["ProgramArguments"][2]
     assert "--index" in daily["ProgramArguments"][2]
     assert "--index" in weekly["ProgramArguments"][2]
+    assert "source-sync antigravity" in antigravity["ProgramArguments"][2]
+    assert "--index" not in antigravity["ProgramArguments"][2]
     assert ".secrets/mcp.env" in daily["ProgramArguments"][2]
     assert daily["WorkingDirectory"] == str(repo)
+    assert antigravity["WorkingDirectory"] == str(repo)
     assert str(repo / ".local" / "source-sync-logs") in daily["StandardOutPath"]

@@ -11,6 +11,16 @@ def test_freshness_report_includes_state_card_counts_and_proof_preview(tmp_path:
     memory_root = tmp_path / "memory"
     (memory_root / "linear" / "test-mac").mkdir(parents=True)
     (memory_root / "linear" / "test-mac" / "2026-06.md").write_text("## Linear issue MON-318\n", encoding="utf-8")
+    (memory_root / "antigravity" / "gemini-cli" / "test-mac" / "nested").mkdir(parents=True)
+    (memory_root / "antigravity" / "gemini-cli" / "test-mac" / "2026-06.md").write_text(
+        "## Antigravity chat\n", encoding="utf-8"
+    )
+    (memory_root / "antigravity" / "gemini-cli" / "test-mac" / "nested" / "2026-06-27.md").write_text(
+        "## Nested Antigravity chat\n", encoding="utf-8"
+    )
+    (memory_root / "antigravity" / "gemini-cli" / "test-mac" / "nested" / "ignore.txt").write_text(
+        "not a card\n", encoding="utf-8"
+    )
     state = read_source_state(state_dir, "linear").record_success(
         machine="Test Mac",
         run_id="run-1",
@@ -24,9 +34,13 @@ def test_freshness_report_includes_state_card_counts_and_proof_preview(tmp_path:
     report = source_freshness_report(state_dir=state_dir, memory_root=memory_root)
     linear = next(source for source in report["sources"] if source["source"] == "linear")
     manus = next(source for source in report["sources"] if source["source"] == "manus")
+    antigravity = next(source for source in report["sources"] if source["source"] == "antigravity")
 
     assert linear["state_status"] == "present"
     assert linear["card_count"] == 1
     assert linear["proof_searches"][0]["status"] == "preview"
     assert "--json-output" in linear["proof_searches"][0]["command"]
     assert manus["state_status"] == "missing-state"
+    assert antigravity["source"] == "antigravity"
+    assert antigravity["next_run"] == "daily at 06:40 local"
+    assert antigravity["card_count"] == 2

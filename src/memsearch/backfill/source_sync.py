@@ -4,8 +4,10 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
+from .gemini_cards import clear_gemini_cards_output, write_gemini_cards
 from .indexing import index_markdown_cards
 from .linear_api import LinearApiClient
 from .linear_cards import write_linear_cards, write_linear_export
@@ -16,11 +18,16 @@ from .manus_api import (
     promote_manus_run,
     verify_manus_run,
 )
+from .models import Conversation, SourceFile
+from .parsers.gemini import parse_antigravity_source
 from .redact import scan_path_for_secrets
 from .source_state import SourceSyncState, read_source_state, source_lock, write_source_state
 
-DEFAULT_LINEAR_OUTPUT_ROOT = Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/linear")
-DEFAULT_MANUS_CARD_ROOT = Path("/Users/dominicmonkhouse/Projects/.memsearch/memory/manus-cloud/manus-api")
+DEFAULT_HOME = Path.home()
+DEFAULT_MEMSEARCH_MEMORY_ROOT = Path.home() / "Projects" / ".memsearch" / "memory"
+DEFAULT_LINEAR_OUTPUT_ROOT = DEFAULT_MEMSEARCH_MEMORY_ROOT / "linear"
+DEFAULT_MANUS_CARD_ROOT = DEFAULT_MEMSEARCH_MEMORY_ROOT / "manus-cloud" / "manus-api"
+DEFAULT_ANTIGRAVITY_CARD_ROOT = DEFAULT_MEMSEARCH_MEMORY_ROOT / "antigravity" / "gemini-cli"
 
 
 @dataclass(frozen=True)
@@ -261,6 +268,140 @@ def sync_manus(
             steps=steps,
             index_command=tuple(index_result.command),
         )
+
+
+def sync_antigravity(
+    *,
+    machine: str,
+    home: Path = DEFAULT_HOME,
+    since: str | None = None,
+    output_root: Path = DEFAULT_ANTIGRAVITY_CARD_ROOT,
+    state_dir: Path = Path(".local/source-sync-state"),
+    dry_run: bool = False,
+    index: bool = False,
+    collection: str = "memsearch_chunks",
+    max_sessions: int | None = None,
+) -> SyncSummary:
+    state = read_source_state(state_dir, "antigravity")
+    effective_since = since or state.last_success_at or ""
+    run_id = _run_id("antigravity")
+    actual_output_root = Path(".local/source-sync-dry-runs/antigravity") if dry_run else output_root
+    card_dir = actual_output_root.expanduser() / run_id / "cards"
+    steps = (
+        "discover Gemini chat files and Antigravity CLI transcripts",
+        "parse changed sessions",
+        "render compact cards",
+        "scan cards",
+        "update state",
+        "optional index",
+    )
+
+    with source_lock(state_dir, "antigravity"):
+        sources = _discover_gemini_chat_sources(home, machine, max_sessions=max_sessions)
+        all_conversations = [parse_antigravity_source(source.path, machine=source.machine) for source in sources]
+        conversations = all_conversations
+        if since:
+            cutoff = _parse_timestamp(since)
+            conversations = [conversation for conversation in conversations if _conversation_at_or_after(conversation, cutoff)]
+        snapshots = _gemini_session_snapshots(conversations)
+        changed = [
+            conversation
+            for conversation in conversations
+            if state.task_snapshots.get(str(conversation.source.path)) != snapshots.get(str(conversation.source.path))
+        ]
+        actual_output_root = actual_output_root.expanduser()
+        actual_output_root.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(prefix=f".{run_id}-", dir=str(actual_output_root)) as temp_dir:
+            staging_dir = Path(temp_dir) / "cards"
+            write_gemini_cards(changed, staging_dir, machine=machine, force=True)
+            staging_hits = scan_path_for_secrets(staging_dir)
+            if staging_hits:
+                raise RuntimeError(f"Antigravity card scan found {len(staging_hits)} hit(s)")
+        card_summary = write_gemini_cards(changed, card_dir, machine=machine, force=True)
+        hits = scan_path_for_secrets(card_dir)
+        if hits:
+            clear_gemini_cards_output(card_dir)
+            raise RuntimeError(f"Antigravity card scan found {len(hits)} hit(s)")
+        if index:
+            index_result = index_markdown_cards(
+                card_dir / "memory" / "antigravity" / "gemini_cli",
+                collection=collection,
+                dry_run=dry_run,
+            )
+            if index_result.returncode != 0:
+                raise RuntimeError(f"Antigravity indexing failed: {index_result.stderr or index_result.stdout}")
+            index_command = tuple(index_result.command)
+        else:
+            index_command = ()
+        if not dry_run:
+            next_state = state.record_success(
+                machine=machine,
+                run_id=run_id,
+                since=effective_since,
+                item_count=len(changed),
+                card_count=int(card_summary["card_count"]),
+                proof_ids=sorted(conversation.platform_id for conversation in changed if conversation.platform_id)[:5],
+                task_snapshots={**state.task_snapshots, **snapshots},
+            )
+            path = write_source_state(state_dir, next_state)
+        else:
+            path = state_dir.expanduser() / "antigravity.json"
+        return SyncSummary(
+            source="antigravity",
+            run_id=run_id,
+            status="dry_run" if dry_run else "success",
+            dry_run=dry_run,
+            since=effective_since,
+            machine=machine,
+            item_count=len(changed),
+            card_count=int(card_summary["card_count"]),
+            output_dir=str(card_dir),
+            state_path=str(path),
+            message="state update preview" if dry_run else "state updated",
+            steps=steps,
+            index_command=index_command,
+        )
+
+
+def _discover_gemini_chat_sources(home: Path, machine: str, max_sessions: int | None = None) -> list[SourceFile]:
+    chat_root = home.expanduser() / ".gemini" / "tmp"
+    cli_root = home.expanduser() / ".gemini" / "antigravity-cli"
+    sources: list[SourceFile] = []
+    if chat_root.is_dir():
+        sources.extend(
+            SourceFile.from_path(path, product="gemini_cli_chat", machine=machine)
+            for path in chat_root.glob("*/chats/*.json")
+            if path.is_file()
+        )
+    if cli_root.is_dir():
+        sources.extend(
+            SourceFile.from_path(path, product="antigravity_cli_transcript", machine=machine)
+            for path in cli_root.glob("brain/*/.system_generated/logs/transcript.jsonl")
+            if path.is_file()
+        )
+    newest_first = sorted(sources, key=lambda source: (-source.mtime, str(source.path)))
+    if max_sessions is not None:
+        newest_first = newest_first[: max(0, max_sessions)]
+    return sorted(newest_first, key=lambda source: str(source.path))
+
+
+def _gemini_session_snapshots(conversations: list[Conversation]) -> dict[str, str]:
+    snapshots: dict[str, str] = {}
+    for conversation in conversations:
+        last_updated = str(conversation.metadata.get("last_updated") or "").strip()
+        value = f"{last_updated}|{conversation.source.content_hash}" if last_updated else conversation.source.content_hash
+        snapshots[str(conversation.source.path)] = value
+    return snapshots
+
+
+def _conversation_at_or_after(conversation: Conversation, cutoff: datetime) -> bool:
+    value = str(conversation.metadata.get("last_updated") or "").strip()
+    if value:
+        try:
+            return _parse_timestamp(value) >= cutoff
+        except ValueError:
+            return False
+    return datetime.fromtimestamp(conversation.source.mtime, timezone.utc) >= cutoff
 
 
 def _default_since(*, days: int) -> str:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 from memsearch.backfill import indexing
@@ -10,7 +12,15 @@ from memsearch.backfill import source_sync as source_sync_module
 from memsearch.backfill.indexing import IndexResult
 from memsearch.backfill.linear_api import LinearIssue
 from memsearch.backfill.source_state import read_source_state, write_source_state
-from memsearch.backfill.source_sync import sync_linear, sync_manus
+from memsearch.backfill.source_sync import (
+    DEFAULT_ANTIGRAVITY_CARD_ROOT,
+    DEFAULT_LINEAR_OUTPUT_ROOT,
+    DEFAULT_MANUS_CARD_ROOT,
+    DEFAULT_MEMSEARCH_MEMORY_ROOT,
+    sync_antigravity,
+    sync_linear,
+    sync_manus,
+)
 
 
 class FakeLinearClient:
@@ -38,6 +48,67 @@ class FakeManusClient:
 
     def iter_tasks(self, max_tasks: int | None = None) -> list[dict]:
         return self.tasks[:max_tasks]
+
+
+def write_gemini_session(
+    home: Path,
+    *,
+    project_hash: str = "project-alpha",
+    session_id: str = "session-alpha",
+    start_time: str = "2026-06-27T07:57:35.868Z",
+    last_updated: str | None = "2026-06-27T07:58:46.926Z",
+) -> Path:
+    path = home / ".gemini" / "tmp" / project_hash / "chats" / f"{session_id}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "sessionId": session_id,
+        "projectHash": project_hash,
+        "startTime": start_time,
+        "kind": "main",
+        "messages": [
+            {"id": f"{session_id}-user", "type": "user", "timestamp": start_time, "content": f"Do {session_id}"},
+            {
+                "id": f"{session_id}-assistant",
+                "type": "gemini",
+                "timestamp": "2026-06-27T07:58:46.000Z",
+                "content": f"Done {session_id}",
+            },
+        ],
+    }
+    if last_updated is not None:
+        payload["lastUpdated"] = last_updated
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def write_antigravity_cli_transcript(home: Path, *, session_id: str = "cli-session") -> Path:
+    path = home / ".gemini" / "antigravity-cli" / "brain" / session_id / ".system_generated" / "logs" / "transcript.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {
+            "step_index": 0,
+            "source": "USER_EXPLICIT",
+            "type": "USER_INPUT",
+            "created_at": "2026-06-27T09:00:00Z",
+            "content": "<USER_REQUEST>\nUse Antigravity CLI memory.\n</USER_REQUEST>",
+        },
+        {
+            "step_index": 1,
+            "source": "MODEL",
+            "type": "GENERIC",
+            "created_at": "2026-06-27T09:00:05Z",
+            "content": "Antigravity CLI memory captured.",
+        },
+    ]
+    path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+    return path
+
+
+def deterministic_run_ids() -> Iterator[str]:
+    index = 0
+    while True:
+        index += 1
+        yield f"antigravity-run-{index}"
 
 
 def test_linear_sync_dry_run_uses_state_since_and_does_not_update_state(tmp_path: Path) -> None:
@@ -216,3 +287,240 @@ def test_manus_sync_date_filter_exports_selected_tasks_without_updating_state(tm
     assert captured == {"limit": None, "task_ids": ["task-new"]}
     assert "state not updated" in summary.message
     assert not (state_dir / "manus.json").exists()
+
+
+def test_source_sync_defaults_use_shared_memsearch_memory_root() -> None:
+    assert Path.home() / "Projects" / ".memsearch" / "memory" == DEFAULT_MEMSEARCH_MEMORY_ROOT
+    assert DEFAULT_LINEAR_OUTPUT_ROOT == DEFAULT_MEMSEARCH_MEMORY_ROOT / "linear"
+    assert DEFAULT_MANUS_CARD_ROOT == DEFAULT_MEMSEARCH_MEMORY_ROOT / "manus-cloud" / "manus-api"
+    assert DEFAULT_ANTIGRAVITY_CARD_ROOT == DEFAULT_MEMSEARCH_MEMORY_ROOT / "antigravity" / "gemini-cli"
+
+
+def test_antigravity_sync_dry_run_reports_changed_sessions_without_state_write(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    state_dir = tmp_path / "state"
+    write_gemini_session(home, session_id="session-alpha")
+    write_gemini_session(home, session_id="session-beta")
+
+    summary = sync_antigravity(machine="Test Mac", home=home, state_dir=state_dir, dry_run=True)
+
+    assert summary.status == "dry_run"
+    assert summary.item_count == 2
+    assert summary.card_count == 2
+    assert not (state_dir / "antigravity.json").exists()
+
+
+def test_antigravity_sync_includes_live_cli_transcripts(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    state_dir = tmp_path / "state"
+    write_antigravity_cli_transcript(home)
+
+    summary = sync_antigravity(machine="Test Mac", home=home, state_dir=state_dir, dry_run=True)
+    card = Path(summary.output_dir) / "memory" / "antigravity" / "gemini_cli" / "2026-06.md"
+    text = card.read_text(encoding="utf-8")
+
+    assert summary.status == "dry_run"
+    assert summary.item_count == 1
+    assert "source:antigravity_cli_transcript" in text
+    assert "Use Antigravity CLI memory." in text
+    assert "Antigravity CLI memory captured." in text
+
+
+def test_antigravity_sync_writes_cards_scans_and_updates_state(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    state_dir = tmp_path / "state"
+    output_root = tmp_path / "cards"
+    run_ids = deterministic_run_ids()
+    monkeypatch.setattr(source_sync_module, "_run_id", lambda _source: next(run_ids))
+    write_gemini_session(home, session_id="session-alpha")
+
+    summary = sync_antigravity(machine="Test Mac", home=home, output_root=output_root, state_dir=state_dir)
+    state = read_source_state(state_dir, "antigravity")
+    manifest = json.loads((Path(summary.output_dir) / "card-manifest.json").read_text(encoding="utf-8"))
+
+    assert summary.status == "success"
+    assert state.last_run_id == summary.run_id
+    assert state.proof_ids == ["session-alpha"]
+    assert state.task_snapshots
+    assert manifest["session_ids"] == ["session-alpha"]
+    assert (Path(summary.output_dir) / "memory" / "antigravity" / "gemini_cli" / "2026-06.md").is_file()
+
+
+def test_antigravity_sync_skips_unchanged_session_snapshots(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    state_dir = tmp_path / "state"
+    output_root = tmp_path / "cards"
+    run_ids = deterministic_run_ids()
+    monkeypatch.setattr(source_sync_module, "_run_id", lambda _source: next(run_ids))
+    write_gemini_session(home, session_id="session-alpha")
+
+    first = sync_antigravity(machine="Test Mac", home=home, output_root=output_root, state_dir=state_dir)
+    second = sync_antigravity(machine="Test Mac", home=home, output_root=output_root, state_dir=state_dir)
+
+    assert first.card_count == 1
+    assert second.status == "success"
+    assert second.card_count == 0
+    assert read_source_state(state_dir, "antigravity").task_snapshots
+
+
+def test_antigravity_sync_since_filters_by_last_updated(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    write_gemini_session(home, session_id="old", last_updated="2026-06-25T23:59:59Z")
+    write_gemini_session(home, session_id="new", last_updated="2026-06-26T00:00:01Z")
+
+    summary = sync_antigravity(
+        machine="Test Mac",
+        home=home,
+        output_root=tmp_path / "cards",
+        state_dir=tmp_path / "state",
+        since="2026-06-26T00:00:00Z",
+        dry_run=True,
+    )
+
+    assert summary.item_count == 1
+    assert summary.card_count == 1
+
+
+def test_antigravity_sync_since_preserves_existing_snapshot_state(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    state_dir = tmp_path / "state"
+    output_root = tmp_path / "cards"
+    run_ids = deterministic_run_ids()
+    monkeypatch.setattr(source_sync_module, "_run_id", lambda _source: next(run_ids))
+    write_gemini_session(home, session_id="old", last_updated="2026-06-25T23:59:59Z")
+    write_gemini_session(home, session_id="new", last_updated="2026-06-26T00:00:01Z")
+    first = sync_antigravity(machine="Test Mac", home=home, output_root=output_root, state_dir=state_dir)
+
+    second = sync_antigravity(
+        machine="Test Mac",
+        home=home,
+        output_root=output_root,
+        state_dir=state_dir,
+        since="2026-06-26T00:00:00Z",
+    )
+    state = read_source_state(state_dir, "antigravity")
+
+    assert first.card_count == 2
+    assert second.card_count == 0
+    assert len(state.task_snapshots) == 2
+
+
+def test_antigravity_sync_first_since_run_does_not_mark_unrendered_old_sessions_synced(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    home = tmp_path / "home"
+    state_dir = tmp_path / "state"
+    output_root = tmp_path / "cards"
+    run_ids = deterministic_run_ids()
+    monkeypatch.setattr(source_sync_module, "_run_id", lambda _source: next(run_ids))
+    write_gemini_session(home, session_id="old", last_updated="2026-06-25T23:59:59Z")
+    write_gemini_session(home, session_id="new", last_updated="2026-06-26T00:00:01Z")
+
+    first = sync_antigravity(
+        machine="Test Mac",
+        home=home,
+        output_root=output_root,
+        state_dir=state_dir,
+        since="2026-06-26T00:00:00Z",
+    )
+    second = sync_antigravity(machine="Test Mac", home=home, output_root=output_root, state_dir=state_dir)
+
+    assert first.card_count == 1
+    assert second.card_count == 1
+    assert read_source_state(state_dir, "antigravity").proof_ids == ["old"]
+
+
+def test_antigravity_sync_since_falls_back_to_file_mtime(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    path = write_gemini_session(home, session_id="mtime-session", last_updated=None)
+    os.utime(path, (1_782_432_001, 1_782_432_001))
+
+    summary = sync_antigravity(
+        machine="Test Mac",
+        home=home,
+        output_root=tmp_path / "cards",
+        state_dir=tmp_path / "state",
+        since="2026-06-26T00:00:00Z",
+        dry_run=True,
+    )
+
+    assert summary.item_count == 1
+    assert summary.card_count == 1
+
+
+def test_antigravity_sync_indexes_only_when_requested(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    output_root = tmp_path / "cards"
+    calls: list[tuple[Path, bool]] = []
+    run_ids = deterministic_run_ids()
+    monkeypatch.setattr(source_sync_module, "_run_id", lambda _source: next(run_ids))
+    write_gemini_session(home, session_id="session-alpha")
+
+    def fake_index(path: Path, *, collection: str, dry_run: bool) -> IndexResult:
+        calls.append((path, dry_run))
+        return IndexResult(["memsearch", "index", str(path)], returncode=0)
+
+    monkeypatch.setattr(source_sync_module, "index_markdown_cards", fake_index)
+    sync_antigravity(machine="Test Mac", home=home, output_root=output_root, state_dir=tmp_path / "state")
+    sync_antigravity(
+        machine="Test Mac",
+        home=home,
+        output_root=output_root,
+        state_dir=tmp_path / "state-2",
+        index=True,
+    )
+
+    assert len(calls) == 1
+    assert calls[0][0] == output_root / "antigravity-run-2" / "cards" / "memory" / "antigravity" / "gemini_cli"
+    assert calls[0][1] is False
+
+
+def test_antigravity_sync_dry_run_index_does_not_mutate_collection(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    calls: list[bool] = []
+    write_gemini_session(home, session_id="session-alpha")
+
+    def fake_index(path: Path, *, collection: str, dry_run: bool) -> IndexResult:
+        calls.append(dry_run)
+        return IndexResult(["memsearch", "index", str(path)], returncode=0, skipped=dry_run)
+
+    monkeypatch.setattr(source_sync_module, "index_markdown_cards", fake_index)
+
+    summary = sync_antigravity(
+        machine="Test Mac",
+        home=home,
+        output_root=tmp_path / "cards",
+        state_dir=tmp_path / "state",
+        dry_run=True,
+        index=True,
+    )
+
+    assert summary.status == "dry_run"
+    assert calls == [True]
+
+
+def test_antigravity_sync_secret_scan_failure_records_no_success_state(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    state_dir = tmp_path / "state"
+    write_gemini_session(home, session_id="session-alpha")
+    scanned: list[Path] = []
+
+    def fake_scan(path: Path) -> list[object]:
+        scanned.append(path)
+        return [object()]
+
+    monkeypatch.setattr(source_sync_module, "scan_path_for_secrets", fake_scan)
+
+    try:
+        sync_antigravity(machine="Test Mac", home=home, output_root=tmp_path / "cards", state_dir=state_dir)
+    except RuntimeError as exc:
+        assert "Antigravity card scan found 1 hit(s)" in str(exc)
+    else:
+        raise AssertionError("sync_antigravity should fail on card secret hits")
+
+    assert scanned
+    assert all(path.suffix != ".json" for path in scanned)
+    assert not (state_dir / "antigravity.json").exists()
+    assert not any((tmp_path / "cards").rglob("*.md"))
+    assert not any((tmp_path / "cards").rglob("card-manifest.json"))

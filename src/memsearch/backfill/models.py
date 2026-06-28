@@ -230,4 +230,6 @@ def _extract_text(value: Any) -> str:
             return _extract_text(value["text"])
         if "content" in value:
             return _extract_text(value["content"])
+        if "parts" in value:
+            return _extract_text(value["parts"])
     return ""
