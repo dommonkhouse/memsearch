@@ -157,6 +157,30 @@ def test_parse_codex_dedupes_near_equal_response_item_mirrors(tmp_path: Path) ->
     assert [(turn.role, turn.text) for turn in conversation.turns] == [("assistant", event_text)]
 
 
+def test_parse_codex_replaces_short_event_mirror_with_full_response_item(tmp_path: Path) -> None:
+    rollout = tmp_path / "rollout.jsonl"
+    event_text = "Done. Report written."
+    response_text = "Done. Report written.\n\n<oai-mem-citation>citation block</oai-mem-citation>"
+    write_jsonl(
+        rollout,
+        [
+            {"type": "event_msg", "payload": {"type": "agent_message", "message": event_text}},
+            {
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": response_text}],
+                },
+            },
+        ],
+    )
+
+    conversation = parse_codex(rollout, machine="Test Mac")
+
+    assert [(turn.role, turn.text) for turn in conversation.turns] == [("assistant", response_text)]
+
+
 def test_parse_codex_keeps_mixed_event_and_response_item_only_turns(tmp_path: Path) -> None:
     rollout = tmp_path / "rollout.jsonl"
     write_jsonl(
