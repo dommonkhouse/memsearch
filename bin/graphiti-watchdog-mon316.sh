@@ -2,21 +2,15 @@
 set -euo pipefail
 
 REPO_ROOT="/Users/dominicmonkhouse/Projects/memsearch"
-LOG_DIR="/Volumes/SSD/graphiti-mon316/logs"
-FALLBACK_LOG_DIR="$HOME/Library/Logs/graphiti-mon316"
-STATE_DIR="/Volumes/SSD/graphiti-mon316/state"
-FALLBACK_STATE_DIR="$HOME/Library/Application Support/graphiti-mon316/state"
+RUNTIME_ROOT="$HOME/.local/state/graphiti-mon316"
+LOG_DIR="$HOME/Library/Logs/graphiti-mon316"
+STATE_DIR="$HOME/Library/Application Support/graphiti-mon316/state"
 COLIMA_PROFILE="graphiti-mon316"
-COLIMA_HOME="${COLIMA_HOME:-/Volumes/SSD/graphiti-mon316/colima-home}"
-DOCKER_SOCK="$COLIMA_HOME/$COLIMA_PROFILE/docker.sock"
+COLIMA_PROFILE_ROOT="$HOME/.colima/$COLIMA_PROFILE"
+DOCKER_SOCK="$COLIMA_PROFILE_ROOT/docker.sock"
 PATH="/opt/homebrew/bin:/usr/local/bin:/Users/dominicmonkhouse/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-if ! (mkdir -p "$LOG_DIR" "$STATE_DIR" && : >"$LOG_DIR/.write-test" && : >"$STATE_DIR/.write-test" && rm -f "$LOG_DIR/.write-test" "$STATE_DIR/.write-test") 2>/dev/null; then
-  LOG_DIR="$FALLBACK_LOG_DIR"
-  STATE_DIR="$FALLBACK_STATE_DIR"
-fi
-
-mkdir -p "$LOG_DIR" "$STATE_DIR"
+mkdir -p "$LOG_DIR" "$STATE_DIR" "$RUNTIME_ROOT"
 cd "$REPO_ROOT"
 
 exec >>"$LOG_DIR/watchdog.log" 2>&1

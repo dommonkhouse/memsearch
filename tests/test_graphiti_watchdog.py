@@ -12,7 +12,7 @@ def test_watchdog_noops_when_all_checks_pass():
         WatchdogCheck("colima_graphiti_mon316", True, "running"),
         WatchdogCheck("compose", True, "ok"),
         WatchdogCheck("tailscale_serve", True, "ok"),
-        WatchdogCheck("ssd_space", True, "ok"),
+        WatchdogCheck("runtime_space", True, "ok"),
     ]
 
     assert decide_recovery(checks) == WatchdogDecision(action="noop", reason="all checks passed")

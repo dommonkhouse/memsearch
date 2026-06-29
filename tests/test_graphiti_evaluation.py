@@ -88,8 +88,8 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-plan-chat-backfill-source-normalisation",
         "relationship-plan-manus-three-lane-recall",
         "relationship-plan-source-freshness-scheduling",
-        "relationship-batch019-mini-ssd-isolation",
-        "relationship-batch019-mini-mcp-routing",
+        "relationship-batch019-macbook-runtime-isolation",
+        "relationship-batch019-macbook-mcp-routing",
         "relationship-batch019-mini-login-session-boundary",
         "relationship-batch019-mini-rollback-safety",
         "relationship-batch020-macbook-pilot-historical",
@@ -548,7 +548,7 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
     )
     assert "perform silent full export" in cases["relationship-source-sync-approval-boundaries"].graph_must_not_contain
     assert cases["relationship-graphiti-mcp-route-host-header"].graph_must_contain == (
-        "http://dom-kamet.tailf78a36.ts.net:8018/mcp",
+        "http://dom-macbook-pro-16.tailf78a36.ts.net:8018/mcp",
         "Host header",
         "127.0.0.1:18018",
         "trailing slash",
@@ -558,10 +558,10 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "relationship-graphiti-mcp-route-host-header"
     ].graph_must_not_contain
     assert cases["relationship-graphiti-runtime-isolation"].graph_must_contain == (
-        "Mac Mini",
+        "MacBook Pro 16",
         "dedicated Colima profile",
         "graphiti-mon316",
-        "/Volumes/SSD/graphiti-mon316",
+        "/Users/dominicmonkhouse/.colima/graphiti-mon316",
         "FalkorDB",
         "Milvus",
     )
@@ -578,16 +578,16 @@ def test_default_cases_cover_current_route_and_negative_controls() -> None:
         "Milvus",
         "Graphiti manifest",
     )
-    assert cases["relationship-batch019-mini-ssd-isolation"].graph_must_contain == (
-        "Mac Mini",
-        "/Volumes/SSD/graphiti-mon316",
+    assert cases["relationship-batch019-macbook-runtime-isolation"].graph_must_contain == (
+        "MacBook Pro 16",
+        "/Users/dominicmonkhouse/.colima/graphiti-mon316",
         "graphiti-mon316",
-        "COLIMA_HOME",
+        "docker.sock",
         "Milvus",
     )
-    assert cases["relationship-batch019-mini-mcp-routing"].graph_must_contain == (
+    assert cases["relationship-batch019-macbook-mcp-routing"].graph_must_contain == (
         "Tailscale Serve",
-        "http://dom-kamet.tailf78a36.ts.net:8018/mcp",
+        "http://dom-macbook-pro-16.tailf78a36.ts.net:8018/mcp",
         "127.0.0.1:18018",
         "DNS-rebinding",
         "trailing slash",

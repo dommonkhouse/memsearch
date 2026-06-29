@@ -113,7 +113,7 @@ class AuthorityRerankConfig:
 class GraphitiConfig:
     enabled: bool = False
     transport: str = "mcp-streamable-http"
-    endpoint: str = "http://127.0.0.1:8018/mcp"
+    endpoint: str = "http://127.0.0.1:18018/mcp/"
     host_header: str = ""
     group_id: str = ""
     batch_size: int = 10

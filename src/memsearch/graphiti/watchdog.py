@@ -30,8 +30,9 @@ class WatchdogDecision:
 
 START_SCRIPT = "/Users/dominicmonkhouse/Projects/memsearch/bin/start-graphiti-mon316.sh"
 TAILSCALE_REPAIR_COMMAND = "tailscale serve --bg --tcp=8018 tcp://127.0.0.1:18018"
-TAILNET_HEALTH_HOST = "dom-kamet.tailf78a36.ts.net"
+TAILNET_HEALTH_HOST = "dom-macbook-pro-16.tailf78a36.ts.net"
 FORBIDDEN_RECOVERY_TOKENS = ("milvus", "down -v", "docker volume rm")
+GRAPHITI_RUNTIME_ROOT = Path.home() / ".colima" / "graphiti-mon316"
 
 
 def decide_recovery(checks: list[WatchdogCheck]) -> WatchdogDecision:
@@ -68,7 +69,7 @@ def collect_checks() -> list[WatchdogCheck]:
         _docker_socket_check(docker_host),
         _docker_compose_check(docker_host),
         _tailscale_serve_check(),
-        _ssd_space_check(Path("/Volumes/SSD")),
+        _runtime_space_check(GRAPHITI_RUNTIME_ROOT),
     ]
 
 
@@ -185,14 +186,13 @@ def _tailscale_serve_check() -> WatchdogCheck:
     return WatchdogCheck("tailscale_serve", "8018" in detail and "18018" in detail, detail)
 
 
-def _ssd_space_check(path: Path) -> WatchdogCheck:
+def _runtime_space_check(path: Path) -> WatchdogCheck:
     if not path.exists():
-        return WatchdogCheck("ssd_space", True, f"skipped: {path} missing")
+        return WatchdogCheck("runtime_space", True, f"skipped: {path} missing")
     usage = shutil.disk_usage(path)
     free_gb = usage.free / (1024**3)
-    return WatchdogCheck("ssd_space", free_gb >= 5, f"{free_gb:.1f} GB free")
+    return WatchdogCheck("runtime_space", free_gb >= 5, f"{free_gb:.1f} GB free")
 
 
 def _graphiti_docker_host() -> str:
-    colima_home = Path(os.environ.get("COLIMA_HOME", "/Volumes/SSD/graphiti-mon316/colima-home"))
-    return f"unix://{colima_home / 'graphiti-mon316' / 'docker.sock'}"
+    return f"unix://{GRAPHITI_RUNTIME_ROOT / 'docker.sock'}"

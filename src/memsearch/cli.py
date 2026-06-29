@@ -902,7 +902,11 @@ def graph_clear_group(
 
 
 @cli.command("graph-backup")
-@click.option("--backup-root", type=click.Path(path_type=Path), default=Path("/Volumes/SSD/graphiti-mon316/backups"))
+@click.option(
+    "--backup-root",
+    type=click.Path(path_type=Path),
+    default=Path.home() / "Library" / "Application Support" / "graphiti-mon316" / "backups",
+)
 @click.option("--execute", is_flag=True)
 @click.option("--retain-days", type=int, default=30)
 @click.option("--prune-to-trash", is_flag=True)
