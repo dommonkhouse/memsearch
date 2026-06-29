@@ -12,8 +12,9 @@ def parse_codex(path: str | Path, *, machine: str) -> Conversation:
     source = SourceFile.from_path(rollout_path, product="codex", machine=machine)
     rows = _read_jsonl(rollout_path)
     session_id = _session_id(rows)
-    event_turns = _event_turns(rows)
-    turns = event_turns or _response_item_message_turns(rows)
+    turns = _turns(rows)
+    if not turns:
+        raise ValueError("unknown_format")
     timestamps = [turn.timestamp for turn in turns if turn.timestamp]
 
     return Conversation(
@@ -57,41 +58,51 @@ def _session_id(rows: list[dict[str, Any]]) -> str:
     return ""
 
 
-def _event_turns(rows: list[dict[str, Any]]) -> list[Turn]:
+def _turns(rows: list[dict[str, Any]]) -> list[Turn]:
     turns: list[Turn] = []
     for row in rows:
-        if row.get("type") != "event_msg":
+        turn = _event_turn(row) or _response_item_message_turn(row)
+        if turn is None:
             continue
-        payload = row.get("payload", {})
-        if not isinstance(payload, dict):
+        if turns and turns[-1].role == turn.role and _dedupe_text(turns[-1].text) == _dedupe_text(turn.text):
             continue
-        msg_type = payload.get("type")
-        if msg_type == "user_message":
-            text = str(payload.get("message") or "").strip()
-            if text:
-                turns.append(Turn(role="user", text=text, timestamp=str(row.get("timestamp") or "")))
-        elif msg_type == "agent_message":
-            text = str(payload.get("message") or "").strip()
-            if text:
-                turns.append(Turn(role="assistant", text=text, timestamp=str(row.get("timestamp") or "")))
+        turns.append(turn)
     return turns
 
 
-def _response_item_message_turns(rows: list[dict[str, Any]]) -> list[Turn]:
-    turns: list[Turn] = []
-    for row in rows:
-        if row.get("type") != "response_item":
-            continue
-        payload = row.get("payload", {})
-        if not isinstance(payload, dict) or payload.get("type") != "message":
-            continue
-        role = str(payload.get("role") or "").strip().lower()
-        if role not in {"user", "assistant"}:
-            continue
-        text = _content_text(payload.get("content"))
+def _event_turn(row: dict[str, Any]) -> Turn | None:
+    if row.get("type") != "event_msg":
+        return None
+    payload = row.get("payload", {})
+    if not isinstance(payload, dict):
+        return None
+    msg_type = payload.get("type")
+    if msg_type == "user_message":
+        text = str(payload.get("message") or "").strip()
         if text:
-            turns.append(Turn(role=role, text=text, timestamp=str(row.get("timestamp") or "")))
-    return turns
+            return Turn(role="user", text=text, timestamp=str(row.get("timestamp") or ""))
+    elif msg_type == "agent_message":
+        text = str(payload.get("message") or "").strip()
+        if text:
+            return Turn(role="assistant", text=text, timestamp=str(row.get("timestamp") or ""))
+    return None
+
+
+def _response_item_message_turn(row: dict[str, Any]) -> Turn | None:
+    if row.get("type") != "response_item":
+        return None
+    payload = row.get("payload", {})
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("type") != "message":
+        return None
+    role = str(payload.get("role") or "").strip().lower()
+    if role not in {"user", "assistant"}:
+        return None
+    text = _content_text(payload.get("content"))
+    if not text:
+        return None
+    return Turn(role=role, text=text, timestamp=str(row.get("timestamp") or ""))
 
 
 def _content_text(content: Any) -> str:
@@ -109,6 +120,10 @@ def _content_text(content: Any) -> str:
         if text:
             parts.append(text)
     return "\n".join(parts)
+
+
+def _dedupe_text(text: str) -> str:
+    return " ".join(text.split())
 
 
 def _title_from_turns(turns: list[Turn], limit: int = 80) -> str:

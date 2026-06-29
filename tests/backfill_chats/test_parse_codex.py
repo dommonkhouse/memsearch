@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from memsearch.backfill.parsers.codex import parse_codex
 
 
@@ -129,3 +131,77 @@ def test_parse_codex_does_not_duplicate_response_item_messages_when_events_exist
         ("user", "Event user"),
         ("assistant", "Event assistant"),
     ]
+
+
+def test_parse_codex_dedupes_near_equal_response_item_mirrors(tmp_path: Path) -> None:
+    rollout = tmp_path / "rollout.jsonl"
+    event_text = "Done. I read the guide.\n\nPlan is complete."
+    response_text = "Done. I read the guide.\nPlan is complete."
+    write_jsonl(
+        rollout,
+        [
+            {"type": "event_msg", "payload": {"type": "agent_message", "message": event_text}},
+            {
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": response_text}],
+                },
+            },
+        ],
+    )
+
+    conversation = parse_codex(rollout, machine="Test Mac")
+
+    assert [(turn.role, turn.text) for turn in conversation.turns] == [("assistant", event_text)]
+
+
+def test_parse_codex_keeps_mixed_event_and_response_item_only_turns(tmp_path: Path) -> None:
+    rollout = tmp_path / "rollout.jsonl"
+    write_jsonl(
+        rollout,
+        [
+            {"type": "event_msg", "payload": {"type": "user_message", "message": "Event-only user"}},
+            {
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": "Response-only assistant"}],
+                },
+            },
+            {
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": "Response-only follow-up"}],
+                },
+            },
+            {"type": "event_msg", "payload": {"type": "agent_message", "message": "Event-only answer"}},
+        ],
+    )
+
+    conversation = parse_codex(rollout, machine="Test Mac")
+
+    assert [(turn.role, turn.text) for turn in conversation.turns] == [
+        ("user", "Event-only user"),
+        ("assistant", "Response-only assistant"),
+        ("user", "Response-only follow-up"),
+        ("assistant", "Event-only answer"),
+    ]
+
+
+def test_parse_codex_rejects_empty_rollout_without_turns(tmp_path: Path) -> None:
+    rollout = tmp_path / "rollout.jsonl"
+    write_jsonl(
+        rollout,
+        [
+            {"type": "event_msg", "payload": {"type": "task_started"}},
+            {"type": "response_item", "payload": {"type": "reasoning", "summary": [{"text": "private reasoning"}]}},
+        ],
+    )
+
+    with pytest.raises(ValueError, match="unknown_format"):
+        parse_codex(rollout, machine="Test Mac")

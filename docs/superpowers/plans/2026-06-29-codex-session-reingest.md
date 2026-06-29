@@ -4,9 +4,9 @@
 
 **Goal:** Recover missing Codex session memory from MCB16 and the MacBook 14 backup without changing the Stop-hook default behaviour or indexing unreviewed raw transcripts.
 
-**Architecture:** Extend the existing MON-321 chat-backfill lane with a focused Codex source slice: inventory live and backup rollout JSONL files, parse full rollouts only in explicit backfill mode, stage redacted review output, probe known missing memories, then promote the reviewed artefacts into the canonical MemSearch memory/index path. The live Stop hook remains final-turn only; reingest uses full-rollout parsing.
+**Architecture:** Extend the existing MON-321 chat-backfill lane with a focused Codex source slice: inventory live and backup rollout JSONL files, parse full rollouts through the Python backfill parser, stage redacted review output, probe known missing memories, then promote the reviewed artefacts into the canonical MemSearch memory/index path. The live Stop hook remains final-turn only; reingest uses the Python backfill conversion path.
 
-**Tech Stack:** Bash parser for Codex rollout formatting, Python backfill inventory/parser modules, pytest, existing `uv run python -m pytest` test gate, existing MemSearch index/search commands, Linear `MON` tracking.
+**Tech Stack:** Bash parser for live Codex Stop-hook formatting, Python backfill inventory/parser modules for reingest, pytest, existing `uv run python -m pytest` test gate, existing MemSearch index/search commands, Linear `MON` tracking.
 
 **Parent Tracking:** Existing broad backfill lane: `MON-321` and `docs/superpowers/plans/2026-06-01-memsearch-chat-backfill.md`.
 
@@ -17,7 +17,8 @@
 - The Webwright install/session evidence exists in a Codex archived rollout, but it was not recoverable from normal MemSearch recall.
 - Root cause is a Codex source-ingestion gap, not a Webwright-specific memory rule.
 - `plugins/codex/scripts/parse-rollout.sh` is used by the live Stop hook and must continue to default to final-turn parsing.
-- Backfill and investigation need an explicit full-rollout mode so earlier turns inside a multi-turn rollout are not lost.
+- Backfill needs the Python Codex parser to retain all user/assistant turns from both `event_msg` and `response_item` message records inside mixed rollouts.
+- The bash parser may still have an explicit full-rollout investigation mode, but it must not be treated as proof that the backfill conversion path recovers a memory.
 - MCB16 structured inventory currently finds 2,593 Codex session/archive JSONL files.
 - MacBook 14 is offline/missing, but the backup at `/Users/dominicmonkhouse/Backups/mac14-history-2026-06-25` contains 2,024 Codex session/archive JSONL files under `codex/sessions` and `codex/archived_sessions`.
 - A broad filesystem search shows 2,036 Codex-looking JSONL paths in that backup, but 12 are not session/archive files: index/work files, a `codex/history.jsonl` file, and Claude project transcripts whose folder name contains `codex`.
@@ -26,13 +27,19 @@
 
 - Modify: `plugins/codex/scripts/parse-rollout.sh`
   - Preserve default final-turn output for the Stop hook.
-  - Add explicit `--all` mode for full-rollout backfill and investigation.
+  - Add explicit `--all` mode for full-rollout investigation only.
+- Modify: `src/memsearch/backfill/parsers/codex.py`
+  - Preserve all clean user/assistant turns from mixed `event_msg` and `response_item` message rollouts.
+  - Deduplicate adjacent mirrored messages with formatting-only whitespace differences.
+  - Skip tool calls, tool outputs, reasoning, and rollouts with no real user/assistant turns.
 - Modify: `src/memsearch/backfill/inventory.py`
   - Include live Codex archives under `.codex/archived_sessions`.
   - Include MacBook 14 backup layout under `codex/sessions` and `codex/archived_sessions`.
 - Modify: `tests/test_codex_parse_rollout.py`
   - Prove default parsing returns only the final turn in a multi-turn rollout.
   - Prove `--all` includes earlier and later turns from the same rollout.
+- Modify: `tests/backfill_chats/test_parse_codex.py`
+  - Prove Python reingest parsing keeps mixed event and response-item turns and skips empty rollouts.
 - Modify: `tests/backfill_chats/test_inventory.py`
   - Prove inventory includes live archives and backup-layout Codex sessions.
 - Create or update: focused staging manifest under `.local/` or `/Users/dominicmonkhouse/Projects/.memsearch/memory/imported-chats/`
@@ -44,7 +51,7 @@
 
 - No deletion, archive, or cleanup of source sessions.
 - No `memsearch reset`, destructive Milvus operation, or raw transcript indexing.
-- No change to the live Codex Stop hook default. Full-rollout parsing is opt-in through `--all`.
+- No change to the live Codex Stop hook default. Bash full-rollout parsing is opt-in through `--all` and is not the reingest conversion engine.
 - No Webwright-specific parser branch. Webwright is only a regression probe for one previously missing memory.
 - No attempt to reconstruct missing MacBook 14 live state beyond the dated backup.
 - No broad Claude, ChatGPT, Manus, or Antigravity reingest in this slice; those stay in the wider MON-321/source-sync lanes.
@@ -58,11 +65,13 @@
 - Indexing is explicit and separate from conversion.
 - Verification must include both parser-level tests and recall probes against known missing Codex memories.
 
-## Task 1: Parser Mode Split
+## Task 1: Parser Mode Split And Python Reingest Parser Guard
 
 **Files:**
 - Modify: `plugins/codex/scripts/parse-rollout.sh`
 - Test: `tests/test_codex_parse_rollout.py`
+- Modify: `src/memsearch/backfill/parsers/codex.py`
+- Test: `tests/backfill_chats/test_parse_codex.py`
 
 - [ ] **Step 1: Write generic multi-turn parser tests**
 
@@ -76,7 +85,11 @@ Use the same kind of fixture and assert that `--all` includes both earlier and l
 
 Add `--all`, `--last`, and help handling. Default to `last`.
 
-- [ ] **Step 4: Verify targeted tests**
+- [ ] **Step 4: Guard the Python Codex backfill parser**
+
+Confirm the existing backfill conversion command uses `src/memsearch/backfill/parsers/codex.py`. Add tests and code so mixed rollouts keep both `event_msg` and `response_item` message turns in document order without duplicating adjacent mirrored messages, including mirrors that differ only by internal whitespace/final-line formatting.
+
+- [ ] **Step 5: Verify targeted tests**
 
 Run:
 
@@ -97,9 +110,9 @@ Expected: all tests pass.
 Add live archive and backup-layout fixture paths:
 
 ```text
-.codex/archived_sessions/*.jsonl
+.codex/archived_sessions/**/*.jsonl
 codex/sessions/**/*.jsonl
-codex/archived_sessions/*.jsonl
+codex/archived_sessions/**/*.jsonl
 ```
 
 - [ ] **Step 2: Implement the inventory rules**
@@ -122,7 +135,7 @@ MCB16 Codex session/archive files: 2,593
 MacBook 14 backup Codex session/archive files: 2,024
 ```
 
-If a broader filesystem search returns a larger number, classify the extras before changing the rules.
+If a broader filesystem search returns a larger number, classify the extras before changing the rules. Run the same broad-search-and-classify check for MCB16 so the 2,593 figure is verified rather than assumed.
 
 ## Task 3: Staged Conversion
 
@@ -132,7 +145,7 @@ If a broader filesystem search returns a larger number, classify the extras befo
 
 - [ ] **Step 1: Convert MCB16 Codex sessions in dry-run mode**
 
-Use full-rollout parsing for conversion. Write a manifest with counts, hashes, skipped files, and parser errors.
+Use the Python Codex backfill parser for conversion. Start from an empty ignored staging directory, or assert that the existing manifest and rendered output are consistent before appending. Write a manifest with counts, hashes, skipped files, empty/unparseable files, parser errors, and duplicate candidates.
 
 - [ ] **Step 2: Convert MacBook 14 backup Codex sessions in dry-run mode**
 
@@ -142,6 +155,10 @@ Use the backup root as the source home. Keep machine identity as `MacBook 14 bac
 
 Report total files, converted conversations, skipped empty/unparseable files, parser errors, and duplicate candidates.
 
+- [ ] **Step 4: Check staged output for surviving near-duplicate turns**
+
+Before promotion, check for consecutive same-role turns whose whitespace-normalised text is identical or near-identical, and fix parser/rendering defects before continuing.
+
 ## Task 4: Secret Scan And Review Output
 
 **Files:**
@@ -150,7 +167,7 @@ Report total files, converted conversations, skipped empty/unparseable files, pa
 
 - [ ] **Step 1: Scan raw staged output**
 
-Block promotion if API keys, bearer tokens, cookies, app passwords, SSH keys, or `.env` values are present.
+Block promotion if API keys, bearer tokens, cookies, app passwords, SSH keys, or `.env` values are present. Verify the scan command returns a failing exit status on hits rather than only redacting and continuing.
 
 - [ ] **Step 2: Generate reviewed canonical output**
 
@@ -167,11 +184,11 @@ Run the same secret scan against the promoted review output.
 
 - [ ] **Step 1: Probe the known missing memory before promotion**
 
-Search for the previously missing Codex install/setup memory. It is a regression probe only.
+Locate the actual source rollout for the previously missing Codex install/setup memory before promotion. Pin the exact query text, source rollout path, and expected source anchor before running the probe.
 
 - [ ] **Step 2: Probe generic earlier-turn recovery**
 
-Search for earlier-turn phrases from at least three multi-turn Codex rollouts that are not final-turn-only content.
+Before promotion, select earlier-turn phrases from at least three multi-turn Codex rollouts that are not final-turn-only content. Pin each query, source rollout path, and expected source anchor before running recall.
 
 - [ ] **Step 3: Record probe results**
 
@@ -214,12 +231,12 @@ Document that live capture is final-turn, while backfill/reingest is full-rollou
 
 ## Acceptance Criteria
 
-- Parser tests prove final-turn default and explicit full-rollout mode.
+- Parser tests prove final-turn default, explicit bash full-rollout investigation mode, and Python backfill recovery of mixed Codex rollout message formats.
 - Inventory tests prove live archives and MacBook 14 backup layout are covered.
-- MCB16 inventory reports 2,593 Codex session/archive JSONL files.
+- MCB16 inventory reports 2,593 Codex session/archive JSONL files, or any drift is classified against a broad-search inventory before the count is accepted.
 - MacBook 14 backup inventory reports 2,024 Codex session/archive JSONL files.
 - The 12 broad-search extras are classified and excluded from session inventory.
 - Staged Codex conversion has a manifest and passes secret scanning.
 - Reviewed output, not raw JSONL, is promoted.
-- Known missing Codex memory and generic earlier-turn probes resolve through normal MemSearch recall after indexing.
+- Known missing Codex memory and generic earlier-turn probes are pinned before promotion, then resolve through normal MemSearch recall after indexing.
 - Linear tracking references this focused plan and the parent MON-321 lane.
