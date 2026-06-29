@@ -181,6 +181,30 @@ def test_parse_codex_replaces_short_event_mirror_with_full_response_item(tmp_pat
     assert [(turn.role, turn.text) for turn in conversation.turns] == [("assistant", response_text)]
 
 
+def test_parse_codex_skips_short_response_mirror_after_full_event_item(tmp_path: Path) -> None:
+    rollout = tmp_path / "rollout.jsonl"
+    event_text = "<image>clipboard block</image>\n\n## My request for Codex:\nRun the reingest"
+    response_text = "<image>clipboard block</image>\n\n## My request for Codex:"
+    write_jsonl(
+        rollout,
+        [
+            {"type": "event_msg", "payload": {"type": "user_message", "message": event_text}},
+            {
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": response_text}],
+                },
+            },
+        ],
+    )
+
+    conversation = parse_codex(rollout, machine="Test Mac")
+
+    assert [(turn.role, turn.text) for turn in conversation.turns] == [("user", event_text)]
+
+
 def test_parse_codex_keeps_mixed_event_and_response_item_only_turns(tmp_path: Path) -> None:
     rollout = tmp_path / "rollout.jsonl"
     write_jsonl(

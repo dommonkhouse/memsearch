@@ -72,6 +72,8 @@ def _turns(rows: list[dict[str, Any]]) -> list[Turn]:
             if current_text.startswith(previous_text):
                 turns[-1] = turn
                 continue
+            if previous_text.startswith(current_text):
+                continue
         turns.append(turn)
     return turns
 
