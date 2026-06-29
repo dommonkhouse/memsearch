@@ -64,8 +64,14 @@ def _turns(rows: list[dict[str, Any]]) -> list[Turn]:
         turn = _event_turn(row) or _response_item_message_turn(row)
         if turn is None:
             continue
-        if turns and turns[-1].role == turn.role and _dedupe_text(turns[-1].text) == _dedupe_text(turn.text):
-            continue
+        if turns and turns[-1].role == turn.role:
+            previous_text = _dedupe_text(turns[-1].text)
+            current_text = _dedupe_text(turn.text)
+            if previous_text == current_text:
+                continue
+            if current_text.startswith(previous_text):
+                turns[-1] = turn
+                continue
         turns.append(turn)
     return turns
 
