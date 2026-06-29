@@ -33,6 +33,20 @@ def test_collect_inventory_labels_known_sources(tmp_path: Path) -> None:
     assert {f.machine for f in files} == {"Test Mac"}
 
 
+def test_collect_inventory_includes_codex_archives_and_backup_layout(tmp_path: Path) -> None:
+    (tmp_path / ".codex/archived_sessions").mkdir(parents=True)
+    (tmp_path / ".codex/archived_sessions/live-archived.jsonl").write_text("{}", encoding="utf-8")
+    (tmp_path / "codex/sessions/2026/06/05").mkdir(parents=True)
+    (tmp_path / "codex/sessions/2026/06/05/backup-session.jsonl").write_text("{}", encoding="utf-8")
+    (tmp_path / "codex/archived_sessions").mkdir(parents=True)
+    (tmp_path / "codex/archived_sessions/backup-archived.jsonl").write_text("{}", encoding="utf-8")
+
+    files = collect_inventory(home=tmp_path, machine="MacBook 14 backup")
+
+    codex_paths = {f.path.name for f in files if f.product == "codex"}
+    assert codex_paths == {"live-archived.jsonl", "backup-session.jsonl", "backup-archived.jsonl"}
+
+
 def test_collect_inventory_marks_cache_and_export_precedence(tmp_path: Path) -> None:
     cache = tmp_path / "Library/Application Support/com.openai.chat/cache.json"
     export = tmp_path / "memsearch/.local/chat-exports/chatgpt/conversations.json"

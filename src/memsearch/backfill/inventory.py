@@ -18,6 +18,9 @@ class InventoryRule:
 HOME_RULES = [
     InventoryRule("claude_code", ".claude/projects/**/*.jsonl"),
     InventoryRule("codex", ".codex/sessions/**/*.jsonl"),
+    InventoryRule("codex", ".codex/archived_sessions/**/*.jsonl"),
+    InventoryRule("codex", "codex/sessions/**/*.jsonl"),
+    InventoryRule("codex", "codex/archived_sessions/**/*.jsonl"),
     InventoryRule("claude_desktop_local_agent_jsonl", "Library/Application Support/Claude/local-agent-mode-sessions/**/*.jsonl"),
     InventoryRule("claude_desktop_local_agent_json", "Library/Application Support/Claude/local-agent-mode-sessions/**/*.json"),
     InventoryRule(

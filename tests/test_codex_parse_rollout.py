@@ -11,9 +11,9 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
     path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
 
 
-def _run_parse(path: Path) -> str:
+def _run_parse(path: Path, *args: str) -> str:
     result = subprocess.run(
-        ["bash", str(SCRIPT), str(path)],
+        ["bash", str(SCRIPT), *args, str(path)],
         check=True,
         capture_output=True,
         text=True,
@@ -113,3 +113,52 @@ def test_parse_rollout_omits_tool_error_content(tmp_path: Path) -> None:
     assert "exit_code=2" not in output
     assert "final error marker" not in output
     assert "prefix " not in output
+
+
+def test_parse_rollout_defaults_to_last_turn(tmp_path: Path) -> None:
+    rollout = tmp_path / "multi-turn.jsonl"
+    _write_jsonl(
+        rollout,
+        [
+            {"type": "event_msg", "payload": {"type": "task_started"}},
+            {"type": "event_msg", "payload": {"type": "user_message", "message": "Earlier request"}},
+            {"type": "event_msg", "payload": {"type": "agent_message", "message": "Earlier answer"}},
+            {"type": "event_msg", "payload": {"type": "task_complete"}},
+            {"type": "event_msg", "payload": {"type": "task_started"}},
+            {"type": "event_msg", "payload": {"type": "user_message", "message": "Final request"}},
+            {"type": "event_msg", "payload": {"type": "agent_message", "message": "Final answer"}},
+        ],
+    )
+
+    output = _run_parse(rollout)
+
+    assert "Earlier request" not in output
+    assert "Earlier answer" not in output
+    assert "[User]: Final request" in output
+    assert "[Codex]: Final answer" in output
+
+
+def test_parse_rollout_all_mode_includes_earlier_turns(tmp_path: Path) -> None:
+    rollout = tmp_path / "multi-turn.jsonl"
+    _write_jsonl(
+        rollout,
+        [
+            {"type": "event_msg", "payload": {"type": "task_started"}},
+            {"type": "event_msg", "payload": {"type": "user_message", "message": "Earlier request"}},
+            {
+                "type": "event_msg",
+                "payload": {"type": "agent_message", "message": "Earlier answer"},
+            },
+            {"type": "event_msg", "payload": {"type": "task_complete"}},
+            {"type": "event_msg", "payload": {"type": "task_started"}},
+            {"type": "event_msg", "payload": {"type": "user_message", "message": "Unrelated final request"}},
+            {"type": "event_msg", "payload": {"type": "agent_message", "message": "Unrelated final answer"}},
+        ],
+    )
+
+    output = _run_parse(rollout, "--all")
+
+    assert "[User]: Earlier request" in output
+    assert "[Codex]: Earlier answer" in output
+    assert "[User]: Unrelated final request" in output
+    assert "[Codex]: Unrelated final answer" in output

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Parse a Codex CLI rollout JSONL — extract and format the LAST TURN only.
+# Parse a Codex CLI rollout JSONL.
+#
+# Default mode extracts and formats the LAST TURN only for the Stop hook.
+# --all formats the full rollout for backfill, reingest, and investigation.
 #
 # A "turn" starts at the last task_started event and scans all subsequent
 # messages until EOF. Tool records are recognized but skipped during formatting.
@@ -17,9 +20,28 @@
 # Tool calls and tool results are skipped so the summarizer works from a clean
 # User/Assistant transcript instead of structured execution metadata.
 #
-# Usage: bash parse-rollout.sh <rollout_path>
+# Usage:
+#   bash parse-rollout.sh <rollout_path>
+#   bash parse-rollout.sh --last <rollout_path>
+#   bash parse-rollout.sh --all <rollout_path>
 
 set -euo pipefail
+
+MODE="last"
+case "${1:-}" in
+  --all)
+    MODE="all"
+    shift
+    ;;
+  --last)
+    MODE="last"
+    shift
+    ;;
+  -h|--help)
+    sed -n '1,26p' "$0"
+    exit 0
+    ;;
+esac
 
 ROLLOUT_PATH="${1:-}"
 
@@ -102,11 +124,20 @@ def format_turn(lines):
 
 # --- Main ---
 rollout_path = sys.argv[1]
+mode = sys.argv[2]
 with open(rollout_path) as f:
     lines = f.readlines()
 
 if not lines:
     print("(empty rollout)")
+    sys.exit(0)
+
+if mode == "all":
+    formatted = format_turn(lines)
+    if not formatted.strip():
+        print("(empty turn)")
+        sys.exit(0)
+    print(formatted)
     sys.exit(0)
 
 # Find the start of the last turn
@@ -128,4 +159,4 @@ if not formatted.strip():
     sys.exit(0)
 
 print(formatted)
-' "$ROLLOUT_PATH"
+' "$ROLLOUT_PATH" "$MODE"
