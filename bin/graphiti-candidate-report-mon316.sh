@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="/Users/dominicmonkhouse/Projects/memsearch"
+REPO_ROOT="${REPO_ROOT:-/Users/dominicmonkhouse/Projects/memsearch}"
 LOG_DIR="$HOME/Library/Logs/graphiti-mon316"
 TODAY="$(date '+%Y-%m-%d')"
 OUTPUT_DIR="$REPO_ROOT/outputs/$TODAY"
@@ -21,3 +21,8 @@ uv run memsearch graph-candidate-report \
   "$CLAUDE_MEMORY_DIR" \
   "$LINEAR_MEMORY_DIR" \
   --output "$OUTPUT_DIR/graphiti-candidate-report.md"
+
+FILTERED_REPORT="$OUTPUT_DIR/graphiti-candidate-report-filtered.md"
+uv run memsearch graph-candidate-report \
+  --review-sources \
+  --output "$FILTERED_REPORT"
