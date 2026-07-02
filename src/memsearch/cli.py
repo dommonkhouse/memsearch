@@ -909,6 +909,43 @@ def graph_review_worklist(candidate_report: Path, output: Path, json_output_path
         click.echo(f"{state}: {count}")
 
 
+@cli.command("graph-review-annotation-sheet")
+@click.option("--worklist-json", type=click.Path(exists=True, path_type=Path), required=True)
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+@click.option("--state", "states", multiple=True, default=("needs_classification", "needs_evidence"))
+@click.option("--source", "sources", multiple=True, type=click.Path(path_type=Path))
+@click.option("--limit", type=click.IntRange(min=1), default=None)
+def graph_review_annotation_sheet(
+    worklist_json: Path,
+    output: Path,
+    states: tuple[str, ...],
+    sources: tuple[Path, ...],
+    limit: int | None,
+) -> None:
+    """Write a non-mutating marker annotation worksheet from a review worklist."""
+    from .graphiti.review_sources import is_blocked_source_path
+    from .graphiti.review_worklist import (
+        load_review_worklist_json,
+        render_annotation_sheet_markdown,
+        select_annotation_items,
+    )
+
+    items = select_annotation_items(
+        load_review_worklist_json(worklist_json),
+        states=states,
+        sources=sources,
+        limit=limit,
+    )
+    blocked_sources = [item.source for item in items if is_blocked_source_path(item.source)]
+    if blocked_sources:
+        preview = ", ".join(str(path) for path in blocked_sources[:5])
+        raise click.ClickException(f"refusing blocked Graphiti review source path(s): {preview}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(render_annotation_sheet_markdown(items, worklist_json=worklist_json), encoding="utf-8")
+    click.echo(f"Wrote Graphiti marker annotation sheet: {output}")
+    click.echo(f"selected_items: {len(items)}")
+
+
 @cli.command("graph-clear-group")
 @click.option("--group-id", required=True)
 @click.option("--confirm-group-id", required=True)

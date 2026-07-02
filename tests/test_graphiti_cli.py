@@ -593,6 +593,66 @@ def test_graph_review_worklist_refuses_blocked_source_paths(tmp_path):
     assert not json_output.exists()
 
 
+def test_graph_review_annotation_sheet_writes_selected_marker_workflow(tmp_path):
+    source = tmp_path / "source.md"
+    report = tmp_path / "report.md"
+    worklist = tmp_path / "worklist.json"
+    sheet = tmp_path / "annotation-sheet.md"
+    source.write_text("Useful context.\n", encoding="utf-8")
+    report.write_text(
+        f"""# Graphiti candidate report
+
+## Accepted
+
+No accepted candidates.
+
+## Rejected
+
+- Source: {source}
+  - Classification: missing
+  - Status: rejected_missing_classification
+  - Detail: missing Classification marker
+""",
+        encoding="utf-8",
+    )
+    worklist_result = CliRunner().invoke(
+        cli,
+        [
+            "graph-review-worklist",
+            "--candidate-report",
+            str(report),
+            "--output",
+            str(tmp_path / "worklist.md"),
+            "--json-output-path",
+            str(worklist),
+        ],
+    )
+    assert worklist_result.exit_code == 0
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "graph-review-annotation-sheet",
+            "--worklist-json",
+            str(worklist),
+            "--output",
+            str(sheet),
+            "--state",
+            "needs_classification",
+            "--limit",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "selected_items: 1" in result.output
+    body = sheet.read_text(encoding="utf-8")
+    assert "Classification: " in body
+    assert "Evidence: " in body
+    assert "Useful context." in body
+    assert source.read_text(encoding="utf-8") == "Useful context.\n"
+
+
 def test_graph_index_curated_dry_run_excludes_raw_daily_memory(monkeypatch, tmp_path):
     raw = tmp_path / ".memsearch" / "memory" / "2026-06-14.md"
     raw.parent.mkdir(parents=True)

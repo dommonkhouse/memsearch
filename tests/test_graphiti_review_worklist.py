@@ -7,8 +7,11 @@ from memsearch.graphiti.review_worklist import (
     STATUS_TO_STATE,
     ReportRow,
     build_review_worklist,
+    load_review_worklist_json,
     parse_candidate_report,
+    render_annotation_sheet_markdown,
     render_review_worklist_json,
+    select_annotation_items,
 )
 
 
@@ -149,3 +152,29 @@ def test_render_review_worklist_json_uses_singular_source(tmp_path):
     assert payload["counts"] == {"needs_classification": 1}
     assert payload["items"][0]["source"] == str(source)
     assert "sources" not in payload["items"][0]
+
+
+def test_annotation_sheet_selects_items_without_mutating_sources(tmp_path):
+    first = tmp_path / "first.md"
+    second = tmp_path / "second.md"
+    first.write_text("First useful fact.\n", encoding="utf-8")
+    second.write_text("Second useful fact.\n", encoding="utf-8")
+    items = build_review_worklist(
+        [
+            ReportRow(source=first, section="rejected", classification="missing", status="rejected_missing_classification"),
+            ReportRow(source=second, section="rejected", classification="current", status="rejected_missing_evidence"),
+        ]
+    )
+    worklist = tmp_path / "worklist.json"
+    worklist.write_text(render_review_worklist_json(items, candidate_report=tmp_path / "report.md"), encoding="utf-8")
+
+    loaded = load_review_worklist_json(worklist)
+    selected = select_annotation_items(loaded, states=("needs_classification",), limit=1)
+    body = render_annotation_sheet_markdown(selected, worklist_json=worklist)
+
+    assert [item.source for item in selected] == [first]
+    assert "Classification: " in body
+    assert "Evidence: " in body
+    assert "First useful fact." in body
+    assert "Second useful fact." not in body
+    assert first.read_text(encoding="utf-8") == "First useful fact.\n"

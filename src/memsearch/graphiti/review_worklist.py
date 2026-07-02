@@ -130,6 +130,73 @@ def render_review_worklist_json(items: list[ReviewWorklistItem], *, candidate_re
     return json.dumps(review_worklist_payload(items, candidate_report=candidate_report), indent=2) + "\n"
 
 
+def load_review_worklist_json(path: Path) -> list[ReviewWorklistItem]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    items = payload.get("items", [])
+    if not isinstance(items, list):
+        raise ValueError("worklist JSON must contain an items list")
+    return [_item_from_json(item) for item in items]
+
+
+def select_annotation_items(
+    items: list[ReviewWorklistItem],
+    *,
+    states: tuple[str, ...] = ("needs_classification", "needs_evidence"),
+    sources: tuple[Path, ...] = (),
+    limit: int | None = None,
+) -> list[ReviewWorklistItem]:
+    source_filter = {str(source.expanduser().resolve(strict=False)) for source in sources}
+    selected = [
+        item
+        for item in items
+        if item.state in states and (not source_filter or str(item.source.expanduser().resolve(strict=False)) in source_filter)
+    ]
+    if limit is not None:
+        selected = selected[:limit]
+    return selected
+
+
+def render_annotation_sheet_markdown(items: list[ReviewWorklistItem], *, worklist_json: Path) -> str:
+    lines = [
+        "# Graphiti marker annotation sheet",
+        "",
+        f"Worklist JSON: {worklist_json}",
+        "",
+        "Add markers to the source file only after human review. Do not promote seeds from this sheet.",
+        "",
+        "## Items",
+        "",
+    ]
+    if not items:
+        lines.append("No annotation items selected.")
+        return "\n".join(lines) + "\n"
+    for index, item in enumerate(items, 1):
+        lines.extend(
+            [
+                f"### {index}. {item.source}",
+                "",
+                f"- Current state: {item.state}",
+                f"- Candidate status: {item.status}",
+                f"- Candidate detail: {item.detail}",
+                "",
+                "Proposed marker block:",
+                "",
+                "```text",
+                "Classification: ",
+                "Evidence: ",
+                "```",
+                "",
+                "Source excerpt:",
+                "",
+                "```text",
+                item.excerpt,
+                "```",
+                "",
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
 def _append_current_row(
     rows: list[ReportRow],
     current: dict[str, str] | None,
@@ -197,3 +264,21 @@ def _json_item(item: ReviewWorklistItem) -> dict:
     payload = asdict(item)
     payload["source"] = str(item.source)
     return payload
+
+
+def _item_from_json(item: object) -> ReviewWorklistItem:
+    if not isinstance(item, dict):
+        raise ValueError("worklist items must be objects")
+    source = item.get("source")
+    if not isinstance(source, str):
+        raise ValueError("worklist item missing source")
+    return ReviewWorklistItem(
+        source=Path(source),
+        source_exists=bool(item.get("source_exists", False)),
+        source_fingerprint=str(item.get("source_fingerprint", "")),
+        state=str(item.get("state", "")),
+        classification=str(item.get("classification", "")),
+        status=str(item.get("status", "")),
+        detail=str(item.get("detail", "")),
+        excerpt=str(item.get("excerpt", "")),
+    )
