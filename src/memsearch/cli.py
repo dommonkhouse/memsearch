@@ -845,13 +845,27 @@ def graph_watchdog(dry_run: bool, execute: bool, state_path: Path | None, json_o
 
 
 @cli.command("graph-candidate-report")
-@click.argument("paths", nargs=-1, required=True, type=click.Path(exists=True, path_type=Path))
+@click.argument("paths", nargs=-1, required=False, type=click.Path(exists=True, path_type=Path))
+@click.option("--review-sources", is_flag=True, help="Use the reviewed Graphiti freshness source set.")
 @click.option("--output", type=click.Path(path_type=Path), required=True)
-def graph_candidate_report(paths: tuple[Path, ...], output: Path) -> None:
+def graph_candidate_report(paths: tuple[Path, ...], review_sources: bool, output: Path) -> None:
     """Write a non-mutating reviewed-candidate report for Graphiti seeds."""
     from .graphiti.candidates import CandidateStatus, build_candidate_report, render_candidate_report
 
-    report = build_candidate_report(paths)
+    if review_sources and paths:
+        raise click.ClickException("--review-sources cannot be combined with positional paths")
+    if review_sources:
+        from .graphiti.review_sources import existing_review_source_paths
+
+        candidate_paths = tuple(existing_review_source_paths())
+        if not candidate_paths:
+            raise click.ClickException("no reviewed Graphiti source paths exist")
+    elif paths:
+        candidate_paths = paths
+    else:
+        raise click.ClickException("provide candidate paths or --review-sources")
+
+    report = build_candidate_report(candidate_paths)
     invalid_accepted = [
         item for item in report.accepted if item.status != CandidateStatus.ACCEPTED or item.classification != "current"
     ]
@@ -860,6 +874,39 @@ def graph_candidate_report(paths: tuple[Path, ...], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(render_candidate_report(report), encoding="utf-8")
     click.echo(f"Wrote Graphiti candidate report: {output}")
+
+
+@cli.command("graph-review-worklist")
+@click.option("--candidate-report", type=click.Path(exists=True, path_type=Path), required=True)
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+@click.option("--json-output-path", type=click.Path(path_type=Path), required=True)
+def graph_review_worklist(candidate_report: Path, output: Path, json_output_path: Path) -> None:
+    """Write a local, non-mutating Graphiti freshness review worklist."""
+    from collections import Counter
+
+    from .graphiti.review_sources import is_blocked_source_path
+    from .graphiti.review_worklist import (
+        build_review_worklist,
+        parse_candidate_report,
+        render_review_worklist_json,
+        render_review_worklist_markdown,
+    )
+
+    rows = parse_candidate_report(candidate_report)
+    items = build_review_worklist(rows)
+    blocked_sources = [item.source for item in items if is_blocked_source_path(item.source)]
+    if blocked_sources:
+        preview = ", ".join(str(path) for path in blocked_sources[:5])
+        raise click.ClickException(f"refusing blocked Graphiti review source path(s): {preview}")
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    json_output_path.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(render_review_worklist_markdown(items, candidate_report=candidate_report), encoding="utf-8")
+    json_output_path.write_text(render_review_worklist_json(items, candidate_report=candidate_report), encoding="utf-8")
+    click.echo(f"Wrote Graphiti review worklist: {output}")
+    click.echo(f"Wrote Graphiti review worklist JSON: {json_output_path}")
+    for state, count in sorted(Counter(item.state for item in items).items()):
+        click.echo(f"{state}: {count}")
 
 
 @cli.command("graph-clear-group")

@@ -130,6 +130,8 @@ On Dominic's Mac Mini it also renders:
 .local/launchagents/com.memsearch.graphiti-candidate-report.plist
 ```
 
+`com.memsearch.graphiti-candidate-report` still runs the report job. Graphiti freshness v1 adds a manual review worklist generated from `graphiti-candidate-report-filtered.md`; scheduling that worklist is deferred until the manual output is proven useful. No `launchctl` install, bootstrap, unload, or LaunchAgent update is part of v1.
+
 It also writes logs under:
 
 ```text

@@ -122,6 +122,8 @@ Graphiti freshness is candidate-first. The weekly candidate job writes a report 
 
 Only `current` statements with explicit evidence are eligible for human review as seed candidates. Historical, superseded, unsafe, raw transcript, raw Manus export, full `.memsearch/memory`, stale route, and troubleshooting symptom sources stay out of ingest-ready output by default.
 
+Graphiti freshness v1 uses a filtered manual review worklist. The worklist consumes `graphiti-candidate-report-filtered.md`, excludes raw feedback, root-level feedback notes, root README, agent captures, Linear sync dumps, and existing Graphiti seed files, and writes non-mutating Markdown/JSON artefacts showing which source files need `Classification:` and `Evidence:` markers. Promotion and Graphiti ingest remain separate future steps.
+
 ## Runtime automation
 
 The Mini automation is user-session supervised. It is not reboot-without-login guaranteed until a separate admin-level power/login plan is approved and tested.

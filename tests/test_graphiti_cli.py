@@ -437,6 +437,162 @@ def test_graph_candidate_report_writes_report(tmp_path):
     assert "Classification: current" in body
 
 
+def test_graph_candidate_report_review_sources_uses_filtered_source_paths(monkeypatch, tmp_path):
+    source = tmp_path / "reviewed.md"
+    output = tmp_path / "report.md"
+    source.write_text(
+        "### Current\n\nClassification: current\n\nGraphiti uses FalkorDB.\n\nEvidence: docs/graphiti-falkordb.md\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("memsearch.graphiti.review_sources.existing_review_source_paths", lambda: [source])
+
+    result = CliRunner().invoke(cli, ["graph-candidate-report", "--review-sources", "--output", str(output)])
+
+    assert result.exit_code == 0
+    assert output.is_file()
+    assert str(source) in output.read_text(encoding="utf-8")
+
+
+def test_graph_candidate_report_review_sources_rejects_positional_paths(tmp_path):
+    source = tmp_path / "reviewed.md"
+    output = tmp_path / "report.md"
+    source.write_text("Classification: current\nEvidence: docs/example.md\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        cli, ["graph-candidate-report", str(source), "--review-sources", "--output", str(output)]
+    )
+
+    assert result.exit_code == 1
+    assert "--review-sources cannot be combined" in result.output
+
+
+def test_graph_review_worklist_writes_markdown_and_json_from_report(tmp_path):
+    source = tmp_path / "source.md"
+    report = tmp_path / "report.md"
+    output = tmp_path / "worklist.md"
+    json_output = tmp_path / "worklist.json"
+    source.write_text("Classification: missing\nUseful context.\n", encoding="utf-8")
+    report.write_text(
+        f"""# Graphiti candidate report
+
+## Accepted
+
+No accepted candidates.
+
+## Rejected
+
+- Source: {source}
+  - Classification: missing
+  - Status: rejected_missing_classification
+  - Detail: missing Classification marker
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "graph-review-worklist",
+            "--candidate-report",
+            str(report),
+            "--output",
+            str(output),
+            "--json-output-path",
+            str(json_output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "needs_classification: 1" in result.output
+    assert "needs_classification" in output.read_text(encoding="utf-8")
+    payload = json.loads(json_output.read_text(encoding="utf-8"))
+    assert payload["items"][0]["state"] == "needs_classification"
+
+
+def test_graph_review_worklist_does_not_construct_graphiti_client(monkeypatch, tmp_path):
+    source = tmp_path / "source.md"
+    report = tmp_path / "report.md"
+    output = tmp_path / "worklist.md"
+    json_output = tmp_path / "worklist.json"
+    source.write_text("Classification: missing\nUseful context.\n", encoding="utf-8")
+    report.write_text(
+        f"""# Graphiti candidate report
+
+## Accepted
+
+No accepted candidates.
+
+## Rejected
+
+- Source: {source}
+  - Classification: missing
+  - Status: rejected_missing_classification
+  - Detail: missing Classification marker
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "memsearch.graphiti.client.GraphitiClient",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("Graphiti client constructed")),
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "graph-review-worklist",
+            "--candidate-report",
+            str(report),
+            "--output",
+            str(output),
+            "--json-output-path",
+            str(json_output),
+        ],
+    )
+
+    assert result.exit_code == 0
+
+
+def test_graph_review_worklist_refuses_blocked_source_paths(tmp_path):
+    report = tmp_path / "report.md"
+    output = tmp_path / "worklist.md"
+    json_output = tmp_path / "worklist.json"
+    blocked_sources = [
+        "/Users/dominicmonkhouse/Projects/claude-config/memory/feedback/workflow.md",
+        "/Users/dominicmonkhouse/Projects/claude-config/memory/feedback_example.md",
+        "/Users/dominicmonkhouse/Projects/claude-config/memory/README.md",
+    ]
+    report.write_text(
+        "# Graphiti candidate report\n\n## Accepted\n\nNo accepted candidates.\n\n## Rejected\n\n"
+        + "\n".join(
+            f"""- Source: {source}
+  - Classification: missing
+  - Status: rejected_missing_classification
+  - Detail: missing Classification marker"""
+            for source in blocked_sources
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "graph-review-worklist",
+            "--candidate-report",
+            str(report),
+            "--output",
+            str(output),
+            "--json-output-path",
+            str(json_output),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "refusing blocked Graphiti review source" in result.output
+    assert not output.exists()
+    assert not json_output.exists()
+
+
 def test_graph_index_curated_dry_run_excludes_raw_daily_memory(monkeypatch, tmp_path):
     raw = tmp_path / ".memsearch" / "memory" / "2026-06-14.md"
     raw.parent.mkdir(parents=True)
